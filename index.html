@@ -7,6 +7,171 @@
     <title>Yoahka Games - Play Online with Friends</title>
     <meta name="description" content="11 free browser games you can play online with friends. No install, no account — just pick a game and share the link.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="c"></canvas>
+
+    <button id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">&#9790;</button>
+
+    <div id="page">
+        <header id="header">
+            <h1><span class="t-y">YOAHKA</span> <span class="t-g">GAMES</span></h1>
+            <p class="subtitle">Pick a game. Play with friends. No install needed.</p>
+        </header>
+
+        <div id="grid">
+            <a href="blackout/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/blackout-logo.svg" alt="Blackout">
+                    <div class="card-accent" style="background:#d0182e"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#d0182e">Blackout</div>
+                    <div class="card-desc">One hunter stalks 8 players through the dark. Flashlights, hiding, 4 maps.</div>
+                    <div class="card-tags"><span class="card-tag">Horror</span><span class="card-tag">Multiplayer</span></div>
+                </div>
+            </a>
+
+            <a href="deadline/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/deadline-logo.svg" alt="Deadline">
+                    <div class="card-accent" style="background:#00e5ff"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#00e5ff">Deadline</div>
+                    <div class="card-desc">Neon lightcycle arena. Leave glowing trails, be the last one riding.</div>
+                    <div class="card-tags"><span class="card-tag">Tron</span><span class="card-tag">Multiplayer</span></div>
+                </div>
+            </a>
+
+            <a href="race/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/race-logo.svg" alt="Bonk Racers">
+                    <div class="card-accent" style="background:#eab308"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#eab308">Bonk Racers</div>
+                    <div class="card-desc">Online kart racer. Pick a vehicle, vote on a course, bonk rivals off the road.</div>
+                    <div class="card-tags"><span class="card-tag">Racing</span><span class="card-tag">Multiplayer</span></div>
+                </div>
+            </a>
+
+            <a href="eyes/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/eyes-logo.svg" alt="Eyes &amp; Legs">
+                    <div class="card-accent" style="background:#14b8a6"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#14b8a6">Eyes &amp; Legs</div>
+                    <div class="card-desc">2-player co-op. One walks in the dark, the other sees traps and guides with pings.</div>
+                    <div class="card-tags"><span class="card-tag">Co-op</span><span class="card-tag">Puzzle</span></div>
+                </div>
+            </a>
+
+            <a href="tanks/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/tanks-logo.svg" alt="Tanks">
+                    <div class="card-accent" style="background:#84cc16"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#84cc16">Tanks</div>
+                    <div class="card-desc">3D tank battles with ricochet shots, breakable crates, mines and an 8-mission campaign.</div>
+                    <div class="card-tags"><span class="card-tag">Strategy</span><span class="card-tag">Game AI</span></div>
+                </div>
+            </a>
+
+            <a href="archery/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/archery-logo.svg" alt="Archery Duel">
+                    <div class="card-accent" style="background:#2d8f4e"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#2d8f4e">Archery Duel</div>
+                    <div class="card-desc">Drag, aim, read the wind. Duel friends or climb a tournament of rival archers.</div>
+                    <div class="card-tags"><span class="card-tag">Physics</span><span class="card-tag">Turn-based</span></div>
+                </div>
+            </a>
+
+            <a href="draw/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/draw-logo.svg" alt="Drawing Duel">
+                    <div class="card-accent" style="background:#f97316"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#f97316">Drawing Duel</div>
+                    <div class="card-desc">Draw-and-guess for up to 8 players. Brush tools, flood fill and live chat.</div>
+                    <div class="card-tags"><span class="card-tag">Party</span><span class="card-tag">Canvas</span></div>
+                </div>
+            </a>
+
+            <a href="sumo/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/sumo-logo.svg" alt="Sumo Smash">
+                    <div class="card-accent" style="background:#f2c14e"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#f2c14e">Sumo Smash</div>
+                    <div class="card-desc">Dash and push opponents off a shrinking platform. Power-ups, best of five.</div>
+                    <div class="card-tags"><span class="card-tag">Brawler</span><span class="card-tag">Physics</span></div>
+                </div>
+            </a>
+
+            <a href="tag/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/tag-logo.svg" alt="Tag Royale">
+                    <div class="card-accent" style="background:#39ff14"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#39ff14">Tag Royale</div>
+                    <div class="card-desc">Multiplayer tag. One starts as "it", sprint and dodge to be the last survivor.</div>
+                    <div class="card-tags"><span class="card-tag">Action</span><span class="card-tag">Game AI</span></div>
+                </div>
+            </a>
+
+            <a href="dont-look/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/dont-look-logo.svg" alt="Don't Look">
+                    <div class="card-accent" style="background:#8b5cf6"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#8b5cf6">Don't Look</div>
+                    <div class="card-desc">The monster only moves when you look away. Activate 3 rituals and escape.</div>
+                    <div class="card-tags"><span class="card-tag">Horror</span><span class="card-tag">First Person</span></div>
+                </div>
+            </a>
+
+            <a href="lava-chain/" class="game-card">
+                <div class="card-thumb">
+                    <img src="assets/lava-chain-logo.svg" alt="Lava Chain">
+                    <div class="card-accent" style="background:#ef4444"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-name" style="color:#ef4444">Lava Chain</div>
+                    <div class="card-desc">Chained to a partner. The lava rises, platforms crumble. Don't drag them down.</div>
+                    <div class="card-tags"><span class="card-tag">Platformer</span><span class="card-tag">Co-op</span></div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Theme toggle -->
+    <script>
+    (function(){
+        var btn = document.getElementById('theme-toggle');
+        var saved = localStorage.getItem('yg-theme');
+        if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '\u2600'; }
+        btn.addEventListener('click', function(){
+            var dark = document.body.classList.toggle('dark');
+            btn.textContent = dark ? '\u2600' : '\u263E';
+            localStorage.setItem('yg-theme', dark ? 'dark' : 'light');
+            // Reload Three.js bg to match theme
+            location.reload();
+        });
+    })();
+    </script>
+
+    <!-- Three.js background loaded separately — page works without it -->
     <script type="importmap">
         {
             "imports": {
@@ -15,22 +180,6 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <canvas id="c"></canvas>
-
-    <div id="page">
-        <!-- Header -->
-        <header id="header">
-            <h1><span class="t-y">YOAHKA</span> <span class="t-g">GAMES</span></h1>
-            <p class="subtitle">Pick a game. Play with friends. No install needed.</p>
-        </header>
-
-        <!-- Game grid -->
-        <div id="grid"></div>
-    </div>
-
     <script type="module" src="js/hub.js"></script>
 </body>
 </html>

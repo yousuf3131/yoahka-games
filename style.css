@@ -1,13 +1,40 @@
 /* ── Yoahka Games — Homepage ───────────────────────────── */
 *{margin:0;padding:0;box-sizing:border-box}
 
+/* ── Light theme (default): red & white ────────────────── */
 :root{
-    --bg:#060612;
-    --card:rgba(12,12,28,0.82);
-    --border:rgba(255,255,255,0.07);
+    --bg:#f5f5f5;
+    --card:#fff;
+    --card-border:rgba(0,0,0,0.08);
+    --card-hover-border:rgba(0,0,0,0.15);
+    --text:#1a1a1a;
+    --muted:#666;
+    --accent:#cc2222;
+    --accent-glow:rgba(204,34,34,0.15);
+    --tag-bg:rgba(0,0,0,0.04);
+    --tag-border:rgba(0,0,0,0.08);
+    --tag-text:#666;
+    --canvas-bg:transparent;
+    --toggle-bg:rgba(0,0,0,0.06);
+    --toggle-hover:rgba(0,0,0,0.12);
+}
+
+/* ── Dark theme ────────────────────────────────────────── */
+body.dark{
+    --bg:#0a0a14;
+    --card:rgba(16,16,30,0.85);
+    --card-border:rgba(255,255,255,0.07);
+    --card-hover-border:rgba(255,255,255,0.15);
     --text:#e8e8f0;
     --muted:#888;
     --accent:#6ee7b7;
+    --accent-glow:rgba(110,231,183,0.15);
+    --tag-bg:rgba(255,255,255,0.05);
+    --tag-border:rgba(255,255,255,0.08);
+    --tag-text:#999;
+    --canvas-bg:transparent;
+    --toggle-bg:rgba(255,255,255,0.08);
+    --toggle-hover:rgba(255,255,255,0.15);
 }
 
 body{
@@ -16,6 +43,7 @@ body{
     font-family:'Inter',system-ui,sans-serif;
     -webkit-tap-highlight-color:transparent;
     min-height:100vh;
+    transition:background .3s,color .3s;
 }
 
 /* ── Three.js canvas background ────────────────────────── */
@@ -26,6 +54,7 @@ body{
     display:block;
     z-index:0;
     pointer-events:none;
+    opacity:0.5;
 }
 
 /* ── Scrollable page layer ─────────────────────────────── */
@@ -51,12 +80,10 @@ body{
     line-height:1.1;
 }
 .t-y{
-    color:#fff;
-    text-shadow:0 0 30px rgba(110,231,183,0.25);
+    color:var(--text);
 }
 .t-g{
     color:var(--accent);
-    text-shadow:0 0 40px rgba(110,231,183,0.4),0 0 80px rgba(110,231,183,0.15);
 }
 .subtitle{
     margin-top:10px;
@@ -64,6 +91,30 @@ body{
     font-weight:500;
     color:var(--muted);
     letter-spacing:0.5px;
+}
+
+/* ── Theme toggle ──────────────────────────────────────── */
+#theme-toggle{
+    position:fixed;
+    top:16px;right:16px;
+    z-index:10;
+    width:42px;height:42px;
+    border-radius:50%;
+    border:none;
+    background:var(--toggle-bg);
+    color:var(--text);
+    font-size:20px;
+    cursor:pointer;
+    transition:background .2s,transform .2s;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+}
+#theme-toggle:hover{
+    background:var(--toggle-hover);
+    transform:scale(1.1);
 }
 
 /* ── Game grid ─────────────────────────────────────────── */
@@ -76,11 +127,9 @@ body{
 /* ── Game card ─────────────────────────────────────────── */
 .game-card{
     background:var(--card);
-    border:1px solid var(--border);
+    border:1px solid var(--card-border);
     border-radius:14px;
     overflow:hidden;
-    backdrop-filter:blur(16px);
-    -webkit-backdrop-filter:blur(16px);
     transition:transform .2s,border-color .2s,box-shadow .2s;
     cursor:pointer;
     text-decoration:none;
@@ -88,9 +137,17 @@ body{
     display:block;
     animation:fadeUp .5s ease-out both;
 }
+body.dark .game-card{
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+}
 .game-card:hover{
     transform:translateY(-4px);
-    border-color:rgba(255,255,255,0.15);
+    border-color:var(--card-hover-border);
+    box-shadow:0 8px 24px rgba(0,0,0,0.08);
+}
+body.dark .game-card:hover{
+    box-shadow:0 8px 24px rgba(0,0,0,0.3);
 }
 
 .card-thumb{
@@ -109,13 +166,11 @@ body{
     object-fit:contain;
     padding:12px;
 }
-
-/* Colored accent line at top of thumb */
 .card-accent{
     position:absolute;
     bottom:0;left:0;right:0;
-    height:2px;
-    opacity:0.6;
+    height:3px;
+    opacity:0.7;
 }
 
 .card-body{
@@ -131,7 +186,7 @@ body{
 .card-desc{
     font-size:13px;
     line-height:1.5;
-    color:#aaa;
+    color:var(--muted);
     margin-bottom:12px;
 }
 .card-tags{
@@ -146,9 +201,9 @@ body{
     text-transform:uppercase;
     padding:3px 10px;
     border-radius:20px;
-    background:rgba(255,255,255,0.05);
-    border:1px solid rgba(255,255,255,0.08);
-    color:#999;
+    background:var(--tag-bg);
+    border:1px solid var(--tag-border);
+    color:var(--tag-text);
 }
 
 /* Staggered entrance */
@@ -185,4 +240,5 @@ body{
     }
     .card-name{font-size:15px}
     .card-desc{font-size:12px}
+    #theme-toggle{top:12px;right:12px;width:36px;height:36px;font-size:17px}
 }
