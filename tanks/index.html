@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../js/analytics.js?v=2"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tanks - Yousuf Kazmi</title>
+    <meta name="description" content="A 3D tank battle game that runs in your browser: an 8-mission campaign plus online battles for up to 8 players. Built by Yousuf Kazmi with three.js.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=5">
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" defer></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="scr-main">
+    <canvas id="c"></canvas>
+    <div id="loading">Loading...</div>
+    <div id="tags"></div>
+
+    <div id="hud">
+        <div class="hud-left">
+            <div class="hud-row" id="hud-campaign">
+                <span class="tag" id="mode-tag">CAMPAIGN</span>
+                <span class="stat">Lives<b id="lives">3</b></span>
+                <span class="stat">Mission<b id="level">1</b></span>
+                <span class="stat">Enemies<b id="enemies">0</b></span>
+            </div>
+            <div class="hud-row" id="hud-battle">
+                <span class="tag" id="b-mode-tag">BATTLE</span>
+                <span class="stat" id="hud-b-round">Round<b id="b-round">1</b></span>
+                <span class="stat" id="hud-b-alive">Alive<b id="b-alive">0</b></span>
+                <span class="stat" id="hud-b-lives" style="display:none">Lives<b id="b-lives">3</b></span>
+            </div>
+        </div>
+        <div class="hud-right">
+            <button class="hud-btn" id="pause-btn" type="button" aria-label="Pause">
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+            </button>
+            <button class="hud-btn" id="mute" type="button" aria-label="Toggle sound">
+                <svg id="icon-sound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+                <svg id="icon-muted" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+            </button>
+            <button class="hud-btn" id="exit" type="button">Exit</button>
+        </div>
+    </div>
+    <ol id="scoreboard"></ol>
+
+    <div id="joy"><div id="joy-knob"></div></div>
+    <div id="touch-actions"><button class="touch-btn" id="mine-btn" type="button">MINE</button></div>
+    <div id="rotate-hint">Turn your phone sideways for a bigger arena</div>
+
+    <div id="banner" class="hidden">
+        <div class="kick" id="banner-kick"></div>
+        <div class="big" id="banner-big"></div>
+        <div class="small" id="banner-small"></div>
+    </div>
+
+    <!-- Main menu -->
+    <div id="main" class="overlay hidden">
+        <div class="panel main-panel">
+            <div class="kicker">3D tank battles</div>
+            <h1>TANKS</h1>
+            <p class="tagline">Ricochet shots, breakable crates and mines. Battle up to 7 friends online, or take on the campaign.</p>
+            <div id="invite" class="invite hidden"></div>
+            <div class="menu-form">
+                <label for="name">Your name</label>
+                <input class="field" id="name" maxlength="14" autocomplete="nickname" placeholder="e.g. Major Tom">
+                <button class="primary wide" id="btn-create" type="button">Create a room</button>
+                <div class="divider" id="div-join">OR JOIN A FRIEND</div>
+                <div class="join-row">
+                    <input class="field" id="code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+                    <button class="btn" id="btn-join" type="button">Join</button>
+                </div>
+                <div class="divider" id="div-offline">OR PLAY OFFLINE</div>
+                <div class="offline-row">
+                    <button class="btn" id="btn-campaign" type="button">Campaign</button>
+                    <button class="btn" id="btn-solo" type="button">Battle bots</button>
+                </div>
+            </div>
+            <div id="menu-status" class="status"></div>
+        </div>
+    </div>
+
+    <!-- Campaign menu -->
+    <div id="menu" class="overlay hidden">
+        <div class="panel">
+            <div class="kicker" id="menu-kicker">Campaign</div>
+            <h1 id="menu-title">TANKS</h1>
+            <p id="menu-text">Fight through 8 missions. Bullets ricochet off walls, crates break apart, and every enemy colour fights differently.</p>
+            <div class="controls">
+                <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive</span>
+                <span>Mouse</span><span>Aim</span>
+                <span><kbd>Click</kbd></span><span>Fire</span>
+                <span><kbd>Space</kbd> / <kbd>Right click</kbd></span><span>Lay mine</span>
+                <span><kbd>Esc</kbd></span><span>Pause</span>
+            </div>
+            <div class="roster">
+                <span><i style="background:#c08a52"></i>Brown: turret</span>
+                <span><i style="background:#9aa3b5"></i>Grey: patrol</span>
+                <span><i style="background:#2bb3a6"></i>Teal: rockets</span>
+                <span><i style="background:#e0584f"></i>Red: ricochet</span>
+                <span><i style="background:#3a3f4c"></i>Black: elite</span>
+            </div>
+
+            <!-- Tank color customization -->
+            <div class="color-pick">
+                <div class="color-pick-row">
+                    <span class="color-pick-label">Your tank color</span>
+                    <div class="swatches" id="swatches-p1"></div>
+                </div>
+                <div class="color-pick-row" id="coop-color-row">
+                    <span class="color-pick-label">Partner's color</span>
+                    <div class="swatches" id="swatches-p2"></div>
+                </div>
+            </div>
+
+            <div class="menu-actions">
+                <button class="primary" id="play" type="button">Start solo</button>
+                <button class="btn btn-coop" id="btn-coop" type="button">Co-op (2 players)</button>
+                <button class="btn" id="menu-back" type="button">Main menu</button>
+            </div>
+            <div class="best" id="best"></div>
+            <div class="note" id="menu-note">Solo: WASD + mouse · Co-op adds: arrows drive P2, auto-aim, Enter fires.</div>
+        </div>
+    </div>
+
+    <div id="pause" class="overlay hidden">
+        <div class="panel">
+            <div class="kicker">Paused</div>
+            <h1>Take a breather</h1>
+            <p>Press <kbd>Esc</kbd> or the button below to jump back in.</p>
+            <button class="primary" id="resume" type="button">Resume</button>
+        </div>
+    </div>
+
+    <!-- Battle lobby -->
+    <div id="lobby" class="overlay dim-lite hidden">
+        <div class="panel lobby-panel">
+            <div class="lobby-a">
+                <div class="kicker">Battle room</div>
+                <div class="room-box">
+                    <div>
+                        <small>Room code</small>
+                        <div class="room-code" id="room-code">-----</div>
+                    </div>
+                    <button class="btn" id="btn-copy" type="button">Copy invite link</button>
+                </div>
+                <p class="rules" id="lobby-rules">Free-for-all. Last tank standing wins the round. First to <b>3</b> round wins takes the match.</p>
+                <div class="lobby-actions">
+                    <button class="primary wide client-only" id="btn-ready" type="button">Ready up</button>
+                    <button class="primary wide host-only" id="btn-start" type="button">Start battle</button>
+                    <div id="lobby-status" class="status"></div>
+                </div>
+            </div>
+            <div class="lobby-b">
+                <div class="section-title">Tanks <small id="count">1/8</small></div>
+                <ul class="players" id="players"></ul>
+                <button class="btn host-only" id="btn-bot" type="button">Add a bot</button>
+                <button class="btn host-only" id="btn-lobby-coop" type="button">Switch to Co-op</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match results -->
+    <div id="results" class="overlay hidden">
+        <div class="panel results-panel">
+            <div class="kicker">Match over</div>
+            <h1 id="results-title">Results</h1>
+            <p class="results-note" id="results-note"></p>
+            <ol class="results" id="results-list"></ol>
+            <div class="results-actions">
+                <button class="primary host-only" id="btn-again" type="button">Back to the lobby</button>
+                <span class="status client-only">Waiting for the host to head back to the lobby...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-battle menu (the battle keeps going online) -->
+    <div id="bmenu" class="overlay hidden">
+        <div class="panel">
+            <div class="kicker" id="bmenu-kicker">Battle</div>
+            <h1>Menu</h1>
+            <p id="bmenu-text">The battle keeps going while this is open.</p>
+            <div class="controls">
+                <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Drive</span>
+                <span>Mouse</span><span>Aim</span>
+                <span><kbd>Click</kbd></span><span>Fire</span>
+                <span><kbd>Space</kbd> / <kbd>Right click</kbd></span><span>Lay mine (2 at a time)</span>
+            </div>
+            <div class="menu-actions">
+                <button class="primary" id="bmenu-resume" type="button">Resume</button>
+                <button class="btn" id="bmenu-leave" type="button">Leave battle</button>
+            </div>
+            <div class="note">On a phone: drag anywhere to drive, tap to shoot.</div>
+        </div>
+    </div>
+
+    <div id="toasts"></div>
+
+    <script type="module" src="js/main.js?v=5"></script>
+</body>
+</html>

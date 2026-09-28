@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="js/analytics.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yoahka Games - Play Online with Friends</title>
+    <meta name="description" content="11 free browser games you can play online with friends. No install, no account — just pick a game and share the link.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="c"></canvas>
+
+    <!-- Title overlay -->
+    <div id="title">
+        <h1><span class="t-y">YOAHKA</span> <span class="t-g">GAMES</span></h1>
+        <p class="subtitle">Pick a game. Play with friends. No install needed.</p>
+    </div>
+
+    <!-- Game info panel (shown when focused on a card) -->
+    <div id="info" class="hidden">
+        <h2 id="info-name"></h2>
+        <p id="info-desc"></p>
+        <div id="info-tags"></div>
+        <a id="info-link" class="btn-play">Play now</a>
+        <button id="info-back" class="btn-back">Back</button>
+    </div>
+
+    <!-- Hint -->
+    <div id="hint">Click a game to explore</div>
+
+    <script type="module" src="js/hub.js"></script>
+</body>
+</html>

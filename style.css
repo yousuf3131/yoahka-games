@@ -1,0 +1,188 @@
+/* ── Yoahka Games — Homepage ───────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+    --bg:#060612;
+    --panel:rgba(10,10,24,0.88);
+    --border:rgba(255,255,255,0.08);
+    --text:#e8e8f0;
+    --muted:#888;
+    --accent:#6ee7b7;
+}
+
+body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+}
+
+#c{
+    position:fixed;
+    inset:0;
+    width:100%;height:100%;
+    display:block;
+}
+
+/* ── Title ──────────────────────────────────────────────── */
+#title{
+    position:fixed;
+    top:32px;left:0;right:0;
+    text-align:center;
+    pointer-events:none;
+    z-index:10;
+    animation:fadeSlideIn .9s ease-out both;
+}
+#title h1{
+    font-family:'Orbitron','Inter',sans-serif;
+    font-size:clamp(28px,6vw,56px);
+    font-weight:900;
+    letter-spacing:4px;
+    line-height:1.1;
+}
+.t-y{
+    color:#fff;
+    text-shadow:0 0 30px rgba(110,231,183,0.3);
+}
+.t-g{
+    color:var(--accent);
+    text-shadow:0 0 40px rgba(110,231,183,0.5),0 0 80px rgba(110,231,183,0.2);
+}
+.subtitle{
+    margin-top:8px;
+    font-size:clamp(12px,2vw,16px);
+    font-weight:500;
+    color:var(--muted);
+    letter-spacing:1px;
+}
+
+/* ── Info panel ─────────────────────────────────────────── */
+#info{
+    position:fixed;
+    bottom:40px;left:50%;
+    transform:translateX(-50%);
+    width:min(420px,90vw);
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    padding:28px 32px;
+    z-index:20;
+    animation:fadeUp .35s ease-out both;
+    text-align:center;
+}
+#info.hidden{display:none}
+
+#info-name{
+    font-family:'Orbitron','Inter',sans-serif;
+    font-size:24px;
+    font-weight:800;
+    letter-spacing:2px;
+    margin-bottom:8px;
+}
+#info-desc{
+    font-size:14px;
+    line-height:1.5;
+    color:#bbb;
+    margin-bottom:14px;
+}
+#info-tags{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+.info-tag{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    padding:4px 12px;
+    border-radius:20px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1);
+    color:#ccc;
+}
+
+.btn-play{
+    display:inline-block;
+    padding:12px 40px;
+    font-family:'Orbitron','Inter',sans-serif;
+    font-size:14px;
+    font-weight:800;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:#060612;
+    background:var(--accent);
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    text-decoration:none;
+    transition:transform .15s,box-shadow .15s;
+    box-shadow:0 0 20px rgba(110,231,183,0.3);
+}
+.btn-play:hover{
+    transform:scale(1.05);
+    box-shadow:0 0 30px rgba(110,231,183,0.5);
+}
+
+.btn-back{
+    display:block;
+    margin:14px auto 0;
+    padding:8px 24px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--border);
+    border-radius:8px;
+    cursor:pointer;
+    transition:color .15s,border-color .15s;
+}
+.btn-back:hover{
+    color:#fff;
+    border-color:rgba(255,255,255,0.25);
+}
+
+/* ── Hint ───────────────────────────────────────────────── */
+#hint{
+    position:fixed;
+    bottom:28px;left:0;right:0;
+    text-align:center;
+    font-size:13px;
+    font-weight:500;
+    color:rgba(255,255,255,0.25);
+    letter-spacing:1px;
+    pointer-events:none;
+    z-index:5;
+    animation:fadeSlideIn 1.5s ease-out both;
+    animation-delay:.6s;
+    opacity:0;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeSlideIn{
+    from{opacity:0;transform:translateY(-12px)}
+    to{opacity:1;transform:translateY(0)}
+}
+@keyframes fadeUp{
+    from{opacity:0;transform:translateX(-50%) translateY(20px)}
+    to{opacity:1;transform:translateX(-50%) translateY(0)}
+}
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media(max-width:600px){
+    #title{top:20px}
+    #info{
+        bottom:20px;
+        padding:22px 20px;
+        border-radius:12px;
+    }
+    #info-name{font-size:20px}
+    .btn-play{padding:10px 32px;font-size:13px}
+    #hint{bottom:16px;font-size:12px}
+}
