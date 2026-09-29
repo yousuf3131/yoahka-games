@@ -10,8 +10,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="c"></canvas>
-
     <button id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">&#9790;</button>
 
     <div id="page">
@@ -155,7 +153,6 @@
         </div>
     </div>
 
-    <!-- Theme toggle -->
     <script>
     (function(){
         var btn = document.getElementById('theme-toggle');
@@ -165,21 +162,8 @@
             var dark = document.body.classList.toggle('dark');
             btn.textContent = dark ? '\u2600' : '\u263E';
             localStorage.setItem('yg-theme', dark ? 'dark' : 'light');
-            // Reload Three.js bg to match theme
-            location.reload();
         });
     })();
     </script>
-
-    <!-- Three.js background loaded separately — page works without it -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
-            }
-        }
-    </script>
-    <script type="module" src="js/hub.js"></script>
 </body>
 </html>

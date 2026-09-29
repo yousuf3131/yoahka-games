@@ -6,35 +6,35 @@
     --bg:#f5f5f5;
     --card:#fff;
     --card-border:rgba(0,0,0,0.08);
-    --card-hover-border:rgba(0,0,0,0.15);
+    --card-hover-border:rgba(0,0,0,0.18);
     --text:#1a1a1a;
-    --muted:#666;
+    --muted:#555;
     --accent:#cc2222;
-    --accent-glow:rgba(204,34,34,0.15);
     --tag-bg:rgba(0,0,0,0.04);
     --tag-border:rgba(0,0,0,0.08);
     --tag-text:#666;
-    --canvas-bg:transparent;
     --toggle-bg:rgba(0,0,0,0.06);
     --toggle-hover:rgba(0,0,0,0.12);
+    --shadow:0 2px 12px rgba(0,0,0,0.06);
+    --shadow-hover:0 8px 28px rgba(0,0,0,0.1);
 }
 
 /* ── Dark theme ────────────────────────────────────────── */
 body.dark{
-    --bg:#0a0a14;
-    --card:rgba(16,16,30,0.85);
-    --card-border:rgba(255,255,255,0.07);
-    --card-hover-border:rgba(255,255,255,0.15);
-    --text:#e8e8f0;
-    --muted:#888;
-    --accent:#6ee7b7;
-    --accent-glow:rgba(110,231,183,0.15);
-    --tag-bg:rgba(255,255,255,0.05);
-    --tag-border:rgba(255,255,255,0.08);
-    --tag-text:#999;
-    --canvas-bg:transparent;
+    --bg:#111;
+    --card:#1a1a1a;
+    --card-border:rgba(255,255,255,0.08);
+    --card-hover-border:rgba(255,255,255,0.18);
+    --text:#e8e8e8;
+    --muted:#999;
+    --accent:#ff4444;
+    --tag-bg:rgba(255,255,255,0.06);
+    --tag-border:rgba(255,255,255,0.1);
+    --tag-text:#aaa;
     --toggle-bg:rgba(255,255,255,0.08);
     --toggle-hover:rgba(255,255,255,0.15);
+    --shadow:0 2px 12px rgba(0,0,0,0.3);
+    --shadow-hover:0 8px 28px rgba(0,0,0,0.5);
 }
 
 body{
@@ -46,21 +46,8 @@ body{
     transition:background .3s,color .3s;
 }
 
-/* ── Three.js canvas background ────────────────────────── */
-#c{
-    position:fixed;
-    inset:0;
-    width:100%;height:100%;
-    display:block;
-    z-index:0;
-    pointer-events:none;
-    opacity:0.5;
-}
-
-/* ── Scrollable page layer ─────────────────────────────── */
+/* ── Page ──────────────────────────────────────────────── */
 #page{
-    position:relative;
-    z-index:1;
     max-width:1100px;
     margin:0 auto;
     padding:48px 24px 64px;
@@ -70,7 +57,7 @@ body{
 #header{
     text-align:center;
     margin-bottom:48px;
-    animation:fadeIn .8s ease-out both;
+    animation:fadeIn .6s ease-out both;
 }
 #header h1{
     font-family:'Orbitron','Inter',sans-serif;
@@ -109,8 +96,6 @@ body{
     display:flex;
     align-items:center;
     justify-content:center;
-    backdrop-filter:blur(8px);
-    -webkit-backdrop-filter:blur(8px);
 }
 #theme-toggle:hover{
     background:var(--toggle-hover);
@@ -130,6 +115,7 @@ body{
     border:1px solid var(--card-border);
     border-radius:14px;
     overflow:hidden;
+    box-shadow:var(--shadow);
     transition:transform .2s,border-color .2s,box-shadow .2s;
     cursor:pointer;
     text-decoration:none;
@@ -137,23 +123,16 @@ body{
     display:block;
     animation:fadeUp .5s ease-out both;
 }
-body.dark .game-card{
-    backdrop-filter:blur(16px);
-    -webkit-backdrop-filter:blur(16px);
-}
 .game-card:hover{
     transform:translateY(-4px);
     border-color:var(--card-hover-border);
-    box-shadow:0 8px 24px rgba(0,0,0,0.08);
-}
-body.dark .game-card:hover{
-    box-shadow:0 8px 24px rgba(0,0,0,0.3);
+    box-shadow:var(--shadow-hover);
 }
 
 .card-thumb{
     width:100%;
     aspect-ratio:16/9;
-    background:#0a0a18;
+    background:#0c0c1a;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -207,17 +186,17 @@ body.dark .game-card:hover{
 }
 
 /* Staggered entrance */
-.game-card:nth-child(1){animation-delay:.05s}
-.game-card:nth-child(2){animation-delay:.1s}
-.game-card:nth-child(3){animation-delay:.15s}
-.game-card:nth-child(4){animation-delay:.2s}
-.game-card:nth-child(5){animation-delay:.25s}
-.game-card:nth-child(6){animation-delay:.3s}
-.game-card:nth-child(7){animation-delay:.35s}
-.game-card:nth-child(8){animation-delay:.4s}
-.game-card:nth-child(9){animation-delay:.45s}
-.game-card:nth-child(10){animation-delay:.5s}
-.game-card:nth-child(11){animation-delay:.55s}
+.game-card:nth-child(1){animation-delay:.03s}
+.game-card:nth-child(2){animation-delay:.06s}
+.game-card:nth-child(3){animation-delay:.09s}
+.game-card:nth-child(4){animation-delay:.12s}
+.game-card:nth-child(5){animation-delay:.15s}
+.game-card:nth-child(6){animation-delay:.18s}
+.game-card:nth-child(7){animation-delay:.21s}
+.game-card:nth-child(8){animation-delay:.24s}
+.game-card:nth-child(9){animation-delay:.27s}
+.game-card:nth-child(10){animation-delay:.30s}
+.game-card:nth-child(11){animation-delay:.33s}
 
 /* ── Animations ────────────────────────────────────────── */
 @keyframes fadeIn{
