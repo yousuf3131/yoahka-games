@@ -1,21 +1,21 @@
 // Don't Look — ambient horror drone generator (Web Audio API)
-import { getCtx } from './audio.js?v=2';
+import { getCtx, getMaster } from './audio.js?v=3';
 
 let musicGain = null;
 let droneNodes = [];
 let currentTrack = null;
 
 export function play(track) {
-    if (currentTrack === track) return;
-    currentTrack = track;
+    if (currentTrack === track && musicGain) return;
     const ctx = getCtx();
-    if (!ctx) return;
+    if (!ctx) return; // audio not unlocked yet — retry on next play() call
+    currentTrack = track;
 
     stopAll();
 
     musicGain = ctx.createGain();
     musicGain.gain.value = 0;
-    musicGain.connect(ctx.destination);
+    musicGain.connect(getMaster()); // through master so mute works
     musicGain.gain.setTargetAtTime(track === 'game' ? 0.08 : 0.05, ctx.currentTime, 1.5);
 
     if (track === 'menu') buildMenuDrone(ctx);

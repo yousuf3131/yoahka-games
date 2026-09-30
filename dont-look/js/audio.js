@@ -8,6 +8,7 @@ try { _muted = JSON.parse(localStorage.getItem('dlMuted') || 'false'); } catch {
 
 export const isMuted = () => _muted;
 export const getCtx = () => ctx;
+export const getMaster = () => master;
 
 export function unlockAudio() {
     if (ctx) return;

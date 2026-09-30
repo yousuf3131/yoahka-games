@@ -155,6 +155,12 @@ function addBox(x, y, z, w, h, d, mat, castShadow = true) {
     return mesh;
 }
 
+// Solid wall: visual box + collision/LOS AABB that matches it exactly
+function addWall(x, y, z, w, h, d) {
+    walls.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
+    return addBox(x, y, z, w, h, d, matWall);
+}
+
 function addFlickerLight(x, z, color = 0xff8833, intensity = 40) {
     const light = new THREE.PointLight(color, intensity, 9, 2);
     light.position.set(x, CEIL_H - 0.5, z);
@@ -172,11 +178,7 @@ function buildRoom(room) {
     floorMesh.receiveShadow = true;
     // Ceiling
     addBox(cx, CEIL_H, cz, w, 0.2, d, matCeil, false);
-    // Walls (4 sides, with openings handled later by trimming)
-    walls.push({ minX: cx - hw - WALL_T, maxX: cx - hw, minZ: cz - hd, maxZ: cz + hd });
-    walls.push({ minX: cx + hw, maxX: cx + hw + WALL_T, minZ: cz - hd, maxZ: cz + hd });
-    walls.push({ minX: cx - hw, maxX: cx + hw, minZ: cz - hd - WALL_T, maxZ: cz - hd });
-    walls.push({ minX: cx - hw, maxX: cx + hw, minZ: cz + hd, maxZ: cz + hd + WALL_T });
+    // Walls (with door openings) are built by buildRoomWalls
 
     // Light inside room
     addFlickerLight(cx, cz);
@@ -201,11 +203,9 @@ function buildCorridor(rA, rB) {
         addBox(cx, 0, cz, len, 0.2, CW, matFloor, false).receiveShadow = true;
         addBox(cx, CEIL_H, cz, len, 0.2, CW, matCeil, false);
         // Corridor walls
-        addBox(cx, CEIL_H / 2, cz - CW / 2, len, CEIL_H, WALL_T, matWall);
-        addBox(cx, CEIL_H / 2, cz + CW / 2, len, CEIL_H, WALL_T, matWall);
-        walls.push({ minX: Math.min(x0,x1), maxX: Math.max(x0,x1), minZ: cz - CW/2 - WALL_T, maxZ: cz - CW/2 });
-        walls.push({ minX: Math.min(x0,x1), maxX: Math.max(x0,x1), minZ: cz + CW/2, maxZ: cz + CW/2 + WALL_T });
-        addFlickerLight(cx, cz, 0xff6622, 0.4);
+        addWall(cx, CEIL_H / 2, cz - CW / 2, len, CEIL_H, WALL_T);
+        addWall(cx, CEIL_H / 2, cz + CW / 2, len, CEIL_H, WALL_T);
+        addFlickerLight(cx, cz, 0xff6622, 20);
     } else {
         // vertical corridor (Z axis)
         const z0 = A.cz + (dz > 0 ? A.d / 2 : -A.d / 2);
@@ -214,10 +214,8 @@ function buildCorridor(rA, rB) {
         const cx = A.cx;
         addBox(cx, 0, cz2, CW, 0.2, len, matFloor, false).receiveShadow = true;
         addBox(cx, CEIL_H, cz2, CW, 0.2, len, matCeil, false);
-        addBox(cx - CW / 2, CEIL_H / 2, cz2, WALL_T, CEIL_H, len, matWall);
-        addBox(cx + CW / 2, CEIL_H / 2, cz2, WALL_T, CEIL_H, len, matWall);
-        walls.push({ minX: cx - CW/2 - WALL_T, maxX: cx - CW/2, minZ: Math.min(z0,z1), maxZ: Math.max(z0,z1) });
-        walls.push({ minX: cx + CW/2, maxX: cx + CW/2 + WALL_T, minZ: Math.min(z0,z1), maxZ: Math.max(z0,z1) });
+        addWall(cx - CW / 2, CEIL_H / 2, cz2, WALL_T, CEIL_H, len);
+        addWall(cx + CW / 2, CEIL_H / 2, cz2, WALL_T, CEIL_H, len);
         addFlickerLight(cx, cz2, 0xff6622, 20);
     }
 }
@@ -257,7 +255,7 @@ function buildRoomWalls(roomIdx) {
     // Helper: build a wall segment with an opening cutout
     function wallWithOpening(cx, cy, cz, tw, th, td, openCenters, openAxis) {
         if (openCenters.length === 0) {
-            addBox(cx, cy, cz, tw, th, td, matWall);
+            addWall(cx, cy, cz, tw, th, td);
             return;
         }
         // Build segments around each opening
@@ -270,10 +268,10 @@ function buildRoomWalls(roomIdx) {
             const segLen = segEnd - prev;
             if (segLen > 0.05) {
                 const segCentre = prev + segLen / 2;
-                if (isX) addBox(segCentre, cy, cz, segLen, th, td, matWall);
-                else addBox(cx, cy, segCentre, tw, th, segLen, matWall);
+                if (isX) addWall(segCentre, cy, cz, segLen, th, td);
+                else addWall(cx, cy, segCentre, tw, th, segLen);
             }
-            // Above opening (door lintel)
+            // Above opening (door lintel) — overhead, so no collision
             const lH = th - CEIL_H * 0.75;
             if (lH > 0.05) {
                 if (isX) addBox(oc, cy + (th - lH) / 2, cz, CW, lH, td, matWall);
@@ -284,8 +282,8 @@ function buildRoomWalls(roomIdx) {
         const finalLen = (isX ? cx + tw / 2 : cz + td / 2) - prev;
         if (finalLen > 0.05) {
             const segCentre = prev + finalLen / 2;
-            if (isX) addBox(segCentre, cy, cz, finalLen, th, td, matWall);
-            else addBox(cx, cy, segCentre, tw, th, finalLen, matWall);
+            if (isX) addWall(segCentre, cy, cz, finalLen, th, td);
+            else addWall(cx, cy, segCentre, tw, th, finalLen);
         }
     }
 
@@ -348,6 +346,65 @@ export function buildLevel() {
 }
 
 export function getWalls() { return walls; }
+
+// ── Navigation (room graph) ───────────────────────────────────────────────
+// Every corridor runs along the shared centre axis of the two rooms it joins,
+// so paths are: current room → its doorway → corridor → next room → …
+function roomAt(x, z) {
+    return ROOMS.findIndex(r => Math.abs(x - r.cx) <= r.w / 2 && Math.abs(z - r.cz) <= r.d / 2);
+}
+function corridorAt(x, z) {
+    return CORRIDORS.findIndex(([a, b]) => {
+        const A = ROOMS[a], B = ROOMS[b];
+        if (Math.abs(B.cx - A.cx) > Math.abs(B.cz - A.cz))
+            return Math.abs(z - A.cz) < 1.5 && x >= Math.min(A.cx, B.cx) && x <= Math.max(A.cx, B.cx);
+        return Math.abs(x - A.cx) < 1.5 && z >= Math.min(A.cz, B.cz) && z <= Math.max(A.cz, B.cz);
+    });
+}
+// Rooms an entity can be said to be "in" (a corridor counts as both ends)
+function locate(x, z) {
+    const r = roomAt(x, z);
+    if (r >= 0) return [r];
+    const c = corridorAt(x, z);
+    if (c >= 0) return CORRIDORS[c];
+    let best = 0, bd = Infinity;
+    ROOMS.forEach((R, i) => { const d = Math.hypot(x - R.cx, z - R.cz); if (d < bd) { bd = d; best = i; } });
+    return [best];
+}
+function neighbours(i) {
+    return CORRIDORS.filter(([a, b]) => a === i || b === i).map(([a, b]) => a === i ? b : a);
+}
+function hopsFrom(goals) {
+    const dist = ROOMS.map(() => Infinity), q = [];
+    for (const g of goals) { dist[g] = 0; q.push(g); }
+    while (q.length) { const i = q.shift(); for (const n of neighbours(i)) if (dist[n] === Infinity) { dist[n] = dist[i] + 1; q.push(n); } }
+    return dist;
+}
+
+// Next point to walk toward to get from (fx,fz) to (tx,tz) without clipping walls
+export function navWaypoint(fx, fz, tx, tz) {
+    const from = locate(fx, fz), to = locate(tx, tz);
+    if (from.length === to.length && from.every((r, i) => r === to[i])) return { x: tx, z: tz }; // same room / corridor
+    const dist = hopsFrom(to);
+    if (from.length === 2) {
+        // In a corridor: head for whichever end is closer to the goal
+        const next = dist[from[0]] <= dist[from[1]] ? from[0] : from[1];
+        if (to.includes(next) && to.length === 1) return { x: tx, z: tz };
+        return { x: ROOMS[next].cx, z: ROOMS[next].cz };
+    }
+    const R = ROOMS[from[0]];
+    const next = neighbours(from[0]).reduce((b, n) => dist[n] < dist[b] ? n : b, neighbours(from[0])[0]);
+    const N = ROOMS[next];
+    // Doorway: line up on the door axis inside the room first, then step through
+    if (Math.abs(N.cx - R.cx) > Math.abs(N.cz - R.cz)) {
+        const s = Math.sign(N.cx - R.cx);
+        if (Math.abs(fz - R.cz) > 0.6) return { x: R.cx + s * (R.w / 2 - 1.5), z: R.cz };
+        return { x: R.cx + s * (R.w / 2 + 1.5), z: R.cz };
+    }
+    const s = Math.sign(N.cz - R.cz);
+    if (Math.abs(fx - R.cx) > 0.6) return { x: R.cx, z: R.cz + s * (R.d / 2 - 1.5) };
+    return { x: R.cx, z: R.cz + s * (R.d / 2 + 1.5) };
+}
 
 // ── Monster ───────────────────────────────────────────────────────────────
 function buildMonster() {
@@ -419,18 +476,19 @@ function buildMonster() {
     monsterMesh = root;
 }
 
-export function setMonsterState(x, z, yaw, frozen) {
+export function setMonsterState(x, z, yaw, frozen, snap = false) {
     if (!monsterMesh) return;
     monsterMesh.visible = true;
-    monsterMesh.position.x += (x - monsterMesh.position.x) * 0.18;
-    monsterMesh.position.z += (z - monsterMesh.position.z) * 0.18;
+    const k = snap ? 1 : 0.18;
+    monsterMesh.position.x += (x - monsterMesh.position.x) * k;
+    monsterMesh.position.z += (z - monsterMesh.position.z) * k;
     monsterMesh.position.y = 0;
     const targetYaw = yaw || 0;
     // Smooth yaw
     let dy = targetYaw - monsterMesh.rotation.y;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
-    monsterMesh.rotation.y += dy * 0.15;
+    monsterMesh.rotation.y += dy * (snap ? 1 : 0.15);
     M.frozen = frozen;
 }
 

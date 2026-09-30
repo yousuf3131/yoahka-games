@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { HostNet, ClientNet, makeCode } from './net.js?v=2';
 import { sfx, unlockAudio, setMuted, isMuted, tickAudio,
          startHeartbeat, stopHeartbeat, setHeartbeatRate,
-         startMonsterRumble, stopMonsterRumble } from './audio.js?v=2';
-import { play as playMusic, stop as stopMusic, setTension } from './music.js?v=2';
-import * as gfx from './gfx.js?v=4';
+         startMonsterRumble, stopMonsterRumble } from './audio.js?v=3';
+import { play as playMusic, stop as stopMusic, setTension } from './music.js?v=3';
+import * as gfx from './gfx.js?v=5';
 
 const track = (name, p) => { if (window.track) window.track(name, p); };
 const $ = id => document.getElementById(id);
@@ -90,22 +90,17 @@ function act(msg) { if (role === 'client') net.send(msg); else hostHandle(myId, 
 function emit(msg) { if (role === 'host' && net) net.broadcast(msg); clientHandle(msg); }
 
 // ── Line of Sight ──────────────────────────────────────────────────────────
+// Segment vs AABB (slab test)
 function segAABB(ax, az, bx, bz, wall) {
-    // Simple AABB vs line segment check
-    const { minX, maxX, minZ, maxZ } = wall;
-    const cx = (ax + bx) / 2, cz = (az + bz) / 2;
-    const hx = Math.abs(bx - ax) / 2, hz = Math.abs(bz - az) / 2;
-    const wx = (maxX - minX) / 2, wz = (maxZ - minZ) / 2;
-    const ex = cx - (minX + maxX) / 2, ez = cz - (minZ + maxZ) / 2;
-    if (Math.abs(ex) > wx + hx + 0.1 || Math.abs(ez) > wz + hz + 0.1) return false;
-    // Separating axis test (approximate)
-    const dx = bx - ax, dz = bz - az;
-    const len = Math.hypot(dx, dz);
-    if (len < 0.001) return false;
-    // Project AABB onto ray direction
-    const rLen = Math.abs(dx / len * wx) + Math.abs(dz / len * wz);
-    const proj = (ex * dx / len) + (ez * dz / len);
-    return Math.abs(proj) < rLen + hx * Math.abs(dx / len) + hz * Math.abs(dz / len);
+    let t0 = 0, t1 = 1;
+    for (const [a, d, lo, hi] of [[ax, bx - ax, wall.minX, wall.maxX], [az, bz - az, wall.minZ, wall.maxZ]]) {
+        if (Math.abs(d) < 1e-9) { if (a < lo || a > hi) return false; continue; }
+        let u = (lo - a) / d, v = (hi - a) / d;
+        if (u > v) [u, v] = [v, u];
+        t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+        if (t0 > t1) return false;
+    }
+    return true;
 }
 
 function hasLOS(ax, az, bx, bz) {
@@ -113,6 +108,13 @@ function hasLOS(ax, az, bx, bz) {
         if (segAABB(ax, az, bx, bz, w)) return false;
     }
     return true;
+}
+
+// LOS wide enough for a body of radius r to walk straight along
+function hasClearPath(ax, az, bx, bz, r) {
+    const d = Math.hypot(bx - ax, bz - az) || 1;
+    const nx = -(bz - az) / d * r, nz = (bx - ax) / d * r;
+    return hasLOS(ax, az, bx, bz) && hasLOS(ax + nx, az + nz, bx + nx, bz + nz) && hasLOS(ax - nx, az - nz, bx - nx, bz - nz);
 }
 
 // ── "Looking" check ────────────────────────────────────────────────────────
@@ -263,13 +265,8 @@ function hostUpdate(dt) {
     const wasFrozen = H.monster.frozen;
     H.monster.frozen = anyLooking;
 
-    if (!wasFrozen && anyLooking) {
-        emit({ t: 'monsterFreeze', frozen: true });
-        sfx.monsterFreeze();
-    } else if (wasFrozen && !anyLooking) {
-        emit({ t: 'monsterFreeze', frozen: false });
-        startMonsterRumble();
-    }
+    // emit() also runs clientHandle locally, which plays the sfx / rumble
+    if (wasFrozen !== anyLooking) emit({ t: 'monsterFreeze', frozen: anyLooking });
 
     // Move monster
     if (!H.monster.frozen && alivePlayers.length > 0) {
@@ -280,13 +277,15 @@ function hostUpdate(dt) {
             if (d < nearestDist) { nearestDist = d; nearest = p; }
         }
         if (nearest) {
-            const dx = nearest.x - H.monster.x, dz = nearest.z - H.monster.z;
+            const wp = hasClearPath(H.monster.x, H.monster.z, nearest.x, nearest.z, 0.4)
+                ? { x: nearest.x, z: nearest.z }
+                : gfx.navWaypoint(H.monster.x, H.monster.z, nearest.x, nearest.z);
+            const dx = wp.x - H.monster.x, dz = wp.z - H.monster.z;
             const dist = Math.hypot(dx, dz);
-            if (dist > 0.5) {
-                const spd = H.monster.speed;
-                H.monster.x += (dx / dist) * spd * dt;
-                H.monster.z += (dz / dist) * spd * dt;
-                H.monster.yaw = Math.atan2(-dx, -dz);
+            if (dist > 0.3) {
+                const step = H.monster.speed * dt;
+                slideMove(H.monster, (dx / dist) * step, (dz / dist) * step, 0.35);
+                H.monster.yaw = Math.atan2(dx, dz); // model's face is +Z
             }
 
             // Catch check
@@ -301,6 +300,10 @@ function hostUpdate(dt) {
             }
         }
     }
+
+    // Host is authoritative — keep the local monster copy in sync every frame
+    monster.x = H.monster.x; monster.z = H.monster.z;
+    monster.yaw = H.monster.yaw; monster.frozen = H.monster.frozen;
 
     // Broadcast monster position
     H.monsterSendTimer -= dt;
@@ -318,12 +321,14 @@ function hostUpdate(dt) {
 
         const distToMonster = Math.hypot(p.x - H.monster.x, p.z - H.monster.z);
         // Bot logic: if monster is close and not frozen, flee; else go toward uncompleted ritual
+        p.botFlee = false;
         if (distToMonster < 8 && !H.monster.frozen) {
             // Flee from monster
             const fx = p.x - H.monster.x, fz = p.z - H.monster.z;
-            const fl = Math.hypot(fx, fz);
+            const fl = Math.hypot(fx, fz) || 1;
             p.botTargetX = p.x + (fx / fl) * 6;
             p.botTargetZ = p.z + (fz / fl) * 6;
+            p.botFlee = true;
         } else {
             // Go toward nearest incomplete ritual
             let bestRitual = null, bestDist = Infinity;
@@ -347,8 +352,10 @@ function hostUpdate(dt) {
     // Bot movement physics
     for (const [id, p] of players) {
         if (!p.bot || !p.alive) continue;
-        const tx = (p.botTargetX || 0) - p.x;
-        const tz = (p.botTargetZ || 0) - p.z;
+        const gx = p.botTargetX || 0, gz = p.botTargetZ || 0;
+        const wp = (p.botFlee || hasClearPath(p.x, p.z, gx, gz, PLAYER_R + 0.05)) ? { x: gx, z: gz } : gfx.navWaypoint(p.x, p.z, gx, gz);
+        const tx = wp.x - p.x;
+        const tz = wp.z - p.z;
         const tl = Math.hypot(tx, tz);
         if (tl > 0.5) {
             p.vx = (p.vx || 0) + (tx / tl) * ACCEL * dt;
@@ -361,7 +368,9 @@ function hostUpdate(dt) {
             const f = FRICTION * dt; const ns = Math.max(0, spd - f);
             p.vx *= ns / spd; p.vz *= ns / spd;
         }
-        p.x += (p.vx || 0) * dt; p.z += (p.vz || 0) * dt;
+        const hit = slideMove(p, (p.vx || 0) * dt, (p.vz || 0) * dt, PLAYER_R);
+        if (hit.bx) p.vx = 0;
+        if (hit.bz) p.vz = 0;
     }
 
     // Bot ritual progress — accumulate dt, complete after RITUAL_TIME seconds
@@ -416,6 +425,7 @@ function hostCheckEnd() {
 
 // ── Client logic ───────────────────────────────────────────────────────────
 function clientHandle(msg) {
+    if (!role) return; // left the room — ignore late timers / packets
     switch (msg.t) {
         case 'welcome': myId = msg.you; roomCode = msg.code; break;
         case 'reject': leave(msg.reason); return;
@@ -448,7 +458,9 @@ function clientHandle(msg) {
             monster.x = msg.monsterSpawn.x; monster.z = msg.monsterSpawn.z;
             monster.yaw = 0; monster.frozen = true;
             H.monster = { ...monster, speed: MONSTER_BASE_SPEED };
-            gfx.setMonsterState(monster.x, monster.z, monster.yaw, true);
+            gfx.setMonsterState(monster.x, monster.z, monster.yaw, true, true);
+            $('static-overlay').style.opacity = 0;
+            $('ritual-progress-wrap').classList.add('hidden');
 
             show('hud');
             view = 'game';
@@ -466,20 +478,18 @@ function clientHandle(msg) {
             setTimeout(() => { showCenter('GO!'); }, 3000);
             break;
         }
-        case 'go': gameActive = true; requestPointerLock(); break;
+        case 'go': if (view !== 'game') break; gameActive = true; requestPointerLock(); break;
         case 'sts':
-            if (role === 'host') break;
             for (const s of msg.a) {
                 const p = players.get(s[0]);
                 if (!p || s[0] === myId) continue;
-                p.x = s[1]; p.z = s[2]; p.yaw = s[3]; p.alive = !!s[4];
+                if (role !== 'host') { p.x = s[1]; p.z = s[2]; p.yaw = s[3]; p.alive = !!s[4]; }
                 if (p.model) gfx.setPlayerPos(s[0], s[1], s[2], s[3]);
             }
             break;
         case 'monsterPos':
             if (role === 'host') break;
             monster.x = msg.x; monster.z = msg.z; monster.yaw = msg.yaw; monster.frozen = msg.frozen;
-            gfx.setMonsterState(monster.x, monster.z, monster.yaw, monster.frozen);
             break;
         case 'monsterFreeze':
             monster.frozen = msg.frozen;
@@ -543,12 +553,23 @@ function clientHandle(msg) {
         case 'results': showResults(msg.list); break;
         case 'toLobby':
             view = 'lobby'; show('lobby');
-            gfx.clearLevel(); gfx.clearPlayerModels(); gfx.hideMonster();
-            players.clear(); me = null;
+            menuScene();
             playMusic('menu');
-            stopHeartbeat(); stopMonsterRumble();
             break;
     }
+}
+
+// Rebuild the level as the slow-orbit menu/lobby backdrop
+function menuScene() {
+    gfx.clearLevel(); gfx.clearPlayerModels();
+    gfx.buildLevel();
+    gfx.setMonsterState(8, 0, 0, true, true);
+    players.clear(); me = null;
+    monster.frozen = true;
+    stopHeartbeat(); stopMonsterRumble();
+    cancelRitual();
+    $('lock-prompt').classList.add('hidden');
+    $('static-overlay').style.opacity = 0;
 }
 
 // ── HUD ────────────────────────────────────────────────────────────────────
@@ -580,13 +601,9 @@ function renderLobby(plist) {
 function showResults(list) {
     track('match_end');
     view = 'results'; show('results');
-    gfx.clearLevel(); gfx.clearPlayerModels();
-    players.clear(); me = null;
-    playMusic('menu');
-    gfx.buildLevel();
-    gfx.setMonsterState(8, 0, 0, true);
-    stopHeartbeat(); stopMonsterRumble();
     gameActive = false;
+    menuScene();
+    playMusic('menu');
 
     const escaped = list.filter(p => p.escaped);
     const caught = list.filter(p => !p.escaped);
@@ -611,7 +628,9 @@ function requestPointerLock() {
 document.addEventListener('pointerlockchange', () => {
     const locked = document.pointerLockElement === document.getElementById('c') ||
                    document.pointerLockElement === document.body;
-    $('lock-prompt').classList.toggle('hidden', locked);
+    // Only nag for the mouse while actually playing
+    const playing = gameActive && view === 'game' && me && me.alive;
+    $('lock-prompt').classList.toggle('hidden', locked || !playing || document.body.classList.contains('touch'));
 });
 $('lock-prompt').addEventListener('click', () => {
     document.getElementById('c').requestPointerLock();
@@ -678,10 +697,14 @@ const endTouch = e => {
 };
 cvs.addEventListener('pointerup', endTouch);
 cvs.addEventListener('pointercancel', endTouch);
+let touchInteractHeld = false;
 $('touch-interact').addEventListener('pointerdown', e => {
     e.preventDefault();
+    touchInteractHeld = true;
     if (nearRitual >= 0 && myRitualIdx < 0 && me && me.alive) startRitual(nearRitual);
 });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
+    $('touch-interact').addEventListener(ev, () => { touchInteractHeld = false; });
 
 // ── Ritual interaction ─────────────────────────────────────────────────────
 function startRitual(idx) {
@@ -795,21 +818,17 @@ function updateGame(dt) {
     }
 
     // Show/hide interact prompt
-    if (nearRitual >= 0 && myRitualIdx < 0) {
-        $('interact-prompt').classList.remove('hidden');
-        $('touch-interact').classList.remove('hidden');
-    } else {
-        $('interact-prompt').classList.add('hidden');
-        if (!document.body.classList.contains('touch')) $('touch-interact').classList.add('hidden');
-    }
+    $('interact-prompt').classList.toggle('hidden', !(nearRitual >= 0 && myRitualIdx < 0) || document.body.classList.contains('touch'));
+    // Touch button stays up while a ritual is in progress (it's being held)
+    $('touch-interact').classList.toggle('hidden', !(nearRitual >= 0 || myRitualIdx >= 0));
 
     // Ritual progress
     if (myRitualIdx >= 0) {
-        // Cancel if monster too close
-        if (distToMonster < 5 && !monster.frozen) {
+        // Cancel if monster too close, walked off the circle, or someone else finished it
+        if ((distToMonster < 5 && !monster.frozen) || nearRitual !== myRitualIdx || ritualsDone[myRitualIdx]) {
             cancelRitual();
-        } else if (!keys.KeyE && joyL.id === null) {
-            // Must hold E (keyboard) or button pressed
+        } else if (!keys.KeyE && !touchInteractHeld) {
+            // Must hold E (keyboard) or the ACTIVATE button (touch)
         } else {
             myRitualT += dt;
             $('ritual-progress-bar').style.width = `${(myRitualT / RITUAL_TIME) * 100}%`;
@@ -839,12 +858,20 @@ function updateGame(dt) {
 }
 
 // ── Wall collision ─────────────────────────────────────────────────────────
-function collidesWall(x, z) {
+function collidesWall(x, z, r = PLAYER_R) {
     for (const w of gfx.getWalls()) {
-        if (x - PLAYER_R < w.maxX && x + PLAYER_R > w.minX &&
-            z - PLAYER_R < w.maxZ && z + PLAYER_R > w.minZ) return true;
+        if (x - r < w.maxX && x + r > w.minX &&
+            z - r < w.maxZ && z + r > w.minZ) return true;
     }
     return false;
+}
+
+// Move an entity by (dx,dz), sliding along walls; returns which axes were blocked
+function slideMove(e, dx, dz, r) {
+    let bx = false, bz = false;
+    if (!collidesWall(e.x + dx, e.z, r)) e.x += dx; else bx = true;
+    if (!collidesWall(e.x, e.z + dz, r)) e.z += dz; else bz = true;
+    return { bx, bz };
 }
 
 // ── Static effect ──────────────────────────────────────────────────────────
@@ -871,6 +898,7 @@ function frame(now) {
     last = now;
     if (view === 'game' || gameActive) {
         updateGame(dt);
+        gfx.setMonsterState(monster.x, monster.z, monster.yaw, monster.frozen);
         gfx.update(dt, gameActive);
         gfx.updateCamera(dt);
     } else {
@@ -938,9 +966,7 @@ function leave(reason) {
     const n = net; net = null; if (n) n.close();
     role = null; myId = null; roomCode = ''; gameActive = false;
     H.players = []; H.phase = 'lobby';
-    gfx.clearLevel(); gfx.clearPlayerModels(); gfx.hideMonster();
-    players.clear(); me = null;
-    stopHeartbeat(); stopMonsterRumble();
+    menuScene();
     document.exitPointerLock && document.exitPointerLock();
     view = 'menu'; show('menu');
     setStatus('menu-status', reason || '', !!reason);
@@ -1001,7 +1027,7 @@ if (invite) { $('code').value = invite; $('invite').textContent = `Invited to ro
 
 gfx.init(document.getElementById('c'));
 gfx.buildLevel();
-gfx.setMonsterState(8, 0, 0, true);
+gfx.setMonsterState(8, 0, 0, true, true);
 show('menu');
 playMusic('menu');
 requestAnimationFrame(frame);
