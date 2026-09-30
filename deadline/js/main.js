@@ -1668,7 +1668,7 @@ $('btn-again').onclick = () => {
 
 $('btn-exit').onclick = () => {
     if (net) net.close();
-    location.href = '../projects.html';
+    location.href = '../';
 };
 
 // Sound toggle

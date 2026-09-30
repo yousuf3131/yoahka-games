@@ -80,7 +80,7 @@ $('btn-exit').addEventListener('click', e => {
         tournament.stop();
         showMainMenu();
     } else {
-        location.href = '../projects.html';
+        location.href = '../';
     }
 });
 

@@ -263,7 +263,7 @@ $('code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); 
 $('name').addEventListener('keydown', e => { if (e.key === 'Enter') ($('code').value ? joinRoom() : createRoom()); });
 $('btn-exit').addEventListener('click', e => {
     e.currentTarget.blur();
-    if (view === 'menu') location.href = '../projects.html';
+    if (view === 'menu') location.href = '../';
     else if (confirm(role === 'host' ? 'Leave and close this room?' : role === 'solo' ? 'Stop practising and go back to the menu?' : 'Leave this room?')) leave();
 });
 function syncMute() {

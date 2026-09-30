@@ -1760,7 +1760,7 @@ function togglePause() {
     paused = !paused && (view === 'game' || view === 'lobby' || view === 'results');
     $('pause').classList.toggle('hidden', !paused);
 }
-$('btn-menu').onclick = () => { sfx.click(); if (view === 'menu') location.href = '../projects.html'; else togglePause(); };
+$('btn-menu').onclick = () => { sfx.click(); if (view === 'menu') location.href = '../'; else togglePause(); };
 $('btn-resume').onclick = () => { paused = false; $('pause').classList.add('hidden'); };
 $('btn-quit').onclick = () => { paused = false; $('pause').classList.add('hidden'); backToMenu(); };
 $('btn-mute').onclick = () => {

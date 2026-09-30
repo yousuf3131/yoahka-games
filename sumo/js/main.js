@@ -906,7 +906,7 @@ $('btn-solo').addEventListener('click', startSolo);
 $('code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
 $('name').addEventListener('keydown', e => { if (e.key === 'Enter') ($('code').value ? joinRoom() : createRoom()); });
 $('btn-exit').addEventListener('click', () => {
-    if (view === 'menu') location.href = '../projects.html';
+    if (view === 'menu') location.href = '../';
     else if (confirm(role === 'host' ? 'Leave and close this room?' : 'Leave this room?')) leave();
 });
 $('btn-copy').addEventListener('click', () => {

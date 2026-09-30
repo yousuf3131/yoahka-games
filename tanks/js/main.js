@@ -291,7 +291,7 @@ $('code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); 
 $('name').addEventListener('keydown', e => { if (e.key === 'Enter') ($('code').value ? joinRoom() : createRoom()); });
 $('exit').addEventListener('click', e => {
     e.currentTarget.blur();
-    if (view === 'main') location.href = '../projects.html';
+    if (view === 'main') location.href = '../';
     else if (view === 'campaign') G.hooks.toMain();
     else if (confirm(role === 'host' ? 'Leave and close this room for everyone?' : role === 'solo' ? 'Leave this battle?' : 'Leave this room?')) leave();
 });
