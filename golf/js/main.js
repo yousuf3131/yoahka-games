@@ -35,6 +35,7 @@ let menuHole = null;
 function show(id) {
     for (const s of ['menu', 'lobby', 'final']) $(s).classList.toggle('hidden', s !== id);
     $('hud').classList.toggle('hidden', id !== 'hud');
+    document.body.classList.toggle('in-game', id === 'hud');
     if (id !== 'hud') $('board').classList.add('hidden');
 }
 function toast(msg) {
@@ -209,7 +210,7 @@ function startHole(i) {
     holeIdx = i; hole = C.prepareHole(C.HOLES[i]); holeT = 0; physAcc = 0;
     gfx.buildHole(hole); gfx.clearBalls(); gfx.setAim(false);
     locals.clear(); remotes.clear(); $('labels').innerHTML = '';
-    aim = orbit = pinch = null; overview = false; deadlineAt = 0;
+    aim = orbit = pinch = null; overview = false; deadlineAt = 0; $('btn-view').classList.remove('on');
     $('board').classList.add('hidden');
     const [tx, tz] = hole.tee;
     for (const r of roster.values()) {
@@ -224,9 +225,9 @@ function startHole(i) {
             $('labels').appendChild(d);
         }
     }
-    $('hole-num').textContent = `HOLE ${i + 1}/${C.HOLE_COUNT}`;
+    $('hole-num').textContent = `Hole ${i + 1}/${C.HOLE_COUNT}`;
     $('hole-name').textContent = hole.name;
-    $('hole-par').textContent = `PAR ${hole.par}`;
+    $('hole-par').textContent = `Par ${hole.par}`;
     renderPlayersHud(); updateStrokesHud();
 
     // Fly-over intro: from above the cup back to the tee
@@ -595,7 +596,7 @@ function showFinal(sc) {
     const parTot = C.HOLES.reduce((a, h) => a + h.par, 0);
     const podium = rows.slice(0, 3).map((r, i) => {
         const p = roster.get(r.id) || { name: '?', color: '#888' }, d = r.tot - parTot;
-        return `<div class="pod p${i + 1}"><div class="medal">${['🥇', '🥈', '🥉'][i]}</div><span class="ball" style="background:${p.color}"></span><b>${esc(p.name)}</b><span>${r.tot} (${d > 0 ? '+' : ''}${d === 0 ? 'E' : d})</span></div>`;
+        return `<div class="pod p${i + 1}"><div class="place">${i + 1}</div><span class="dot" style="background:${p.color}"></span><b>${esc(p.name)}</b><span>${r.tot} (${d > 0 ? '+' : ''}${d === 0 ? 'E' : d})</span></div>`;
     }).join('');
     const winner = rows[0] && roster.get(rows[0].id);
     $('final-title').textContent = rows[0] && rows[0].id === myId ? 'You win! 🏆' : winner ? `${winner.name} wins!` : 'Game over';
@@ -611,9 +612,10 @@ function renderLobby(plist) {
     $('room-code').textContent = roomCode || '-----';
     $('room-info').classList.toggle('hidden', !net);
     $('count').textContent = `${plist.length}/${MAX_PLAYERS}`;
-    $('players').innerHTML = plist.map(p => `<li class="${p.id === myId ? 'me' : ''}"><span class="ball" style="background:${p.color}"></span><span class="who">${esc(p.name)}</span>${p.bot ? '<span class="badge bot">BOT</span>' : ''}${p.id === myId ? '<span class="badge you">YOU</span>' : ''}${!p.bot && p.ready && p.id !== myId ? '<span class="badge ok">READY</span>' : ''}${role === 'host' && p.id !== myId ? `<button class="kick" data-kick="${esc(p.id)}" type="button" aria-label="Remove">✕</button>` : ''}</li>`).join('');
+    // The host is always first in the list
+    $('players').innerHTML = plist.map((p, i) => `<li class="player${p.id === myId ? ' me' : ''}"><span class="dot" style="background:${p.color}"></span><span class="who"><b>${esc(p.name)}${p.id === myId ? ' (you)' : ''}</b></span>${i === 0 && !p.bot ? '<span class="badge host">Host</span>' : ''}${p.bot ? '<span class="badge">Bot</span>' : ''}${!p.bot && i > 0 && p.ready ? '<span class="badge ok">Ready</span>' : ''}${role === 'host' && p.id !== myId ? `<button class="kick" data-kick="${esc(p.id)}" type="button">Remove</button>` : ''}</li>`).join('');
     const me = plist.find(p => p.id === myId);
-    $('btn-ready').textContent = me && me.ready ? 'Not ready' : 'Ready';
+    $('btn-ready').textContent = me && me.ready ? 'Not ready' : 'Ready up';
     $('btn-ready').dataset.r = me && me.ready ? '0' : '1';
 }
 
@@ -728,7 +730,10 @@ $('btn-join').onclick = joinRoom;
 $('btn-solo').onclick = startSolo;
 $('code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
 $('name').addEventListener('keydown', e => { if (e.key === 'Enter') ($('code').value ? joinRoom() : startSolo()); });
-$('btn-back').onclick = () => { sfx.click(); leave(); };
+$('btn-exit').onclick = () => {
+    if (view === 'menu') location.href = '../';
+    else if (confirm(role === 'host' && net ? 'Leave and close this room?' : role === 'host' ? 'Leave this game?' : 'Leave this room?')) leave();
+};
 $('btn-copy').onclick = () => {
     const url = `${location.origin}${location.pathname}?room=${roomCode}`;
     (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast('Invite link copied!')).catch(() => toast(`Room code: ${roomCode}`));
@@ -738,7 +743,6 @@ $('btn-ready').onclick = () => { sfx.click(); act({ t: 'ready', r: $('btn-ready'
 $('btn-start').onclick = () => { sfx.click(); hostStartGame(); };
 $('players').addEventListener('click', e => { const id = e.target.dataset && e.target.dataset.kick; if (id) kickPlayer(id); });
 $('btn-view').onclick = () => { sfx.click(); toggleOverview(); };
-$('btn-quit').onclick = () => { if (confirm(role === 'host' && net ? 'Leave and close this room?' : 'Leave this game?')) leave(); };
 $('btn-again').onclick = () => {
     if (role !== 'host') return;
     H.phase = 'lobby';
@@ -746,10 +750,9 @@ $('btn-again').onclick = () => {
     emit({ t: 'toLobby' }); emitLobby();
 };
 $('btn-final-leave').onclick = () => leave();
-$('btn-home').onclick = () => { location.href = '../'; };
-function syncMute() { document.querySelectorAll('.mute').forEach(b => b.classList.toggle('muted', isMuted())); }
-document.querySelectorAll('.mute').forEach(b => b.onclick = () => { unlockAudio(); setMuted(!isMuted()); syncMute(); });
+function syncMute() { $('icon-sound').classList.toggle('hidden', isMuted()); $('icon-muted').classList.toggle('hidden', !isMuted()); }
 syncMute();
+$('btn-mute').addEventListener('click', () => { unlockAudio(); setMuted(!isMuted()); syncMute(); });
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 $('name').value = myName;
