@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../js/analytics.js?v=2"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Putt Party - Mini Golf with Friends</title>
+    <meta name="description" content="3D mini golf for up to 8 players. Nine handcrafted holes with windmills, bumpers, water and sand. Play online with friends or bots.">
+    <meta name="theme-color" content="#3aa04a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=1">
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" defer></script>
+    <script type="importmap">
+        { "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+        } }
+    </script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+
+<!-- Menu -->
+<div id="menu" class="screen">
+    <div class="card">
+        <div class="logo">
+            <span class="logo-ball"></span>
+            <h1>Putt<span>Party</span></h1>
+            <p>3D mini golf · 9 holes · up to 8 players</p>
+        </div>
+        <input id="name" type="text" maxlength="20" placeholder="Your name" autocomplete="off" spellcheck="false">
+        <button id="btn-solo" class="btn primary big" type="button">Play vs Bots</button>
+        <button id="btn-create" class="btn big" type="button">Create Online Room</button>
+        <div class="join">
+            <input id="code" type="text" maxlength="5" placeholder="ROOM CODE" autocomplete="off" spellcheck="false">
+            <button id="btn-join" class="btn" type="button">Join</button>
+        </div>
+        <p id="invite" class="invite hidden"></p>
+        <p id="menu-status" class="status"></p>
+        <p class="how">Drag back from your ball to aim, release to putt.<br>Drag anywhere else to look around.</p>
+    </div>
+    <button id="btn-home" class="corner left btn ghost" type="button">← Games</button>
+    <button class="corner right icon mute" type="button" aria-label="Toggle sound"><span class="on">🔊</span><span class="off">🔇</span></button>
+</div>
+
+<!-- Lobby -->
+<div id="lobby" class="screen hidden">
+    <div class="card">
+        <h2>Lobby</h2>
+        <div id="room-info" class="room-info">
+            <span class="lbl">Room</span><span id="room-code" class="code">-----</span>
+            <button id="btn-copy" class="btn small" type="button">Copy invite</button>
+        </div>
+        <div class="list-head"><span>Players</span><span id="count">1/8</span></div>
+        <ul id="players" class="players"></ul>
+        <div class="row">
+            <button id="btn-bot" class="btn host-only" type="button">+ Add Bot</button>
+            <button id="btn-ready" class="btn client-only" type="button">Ready</button>
+            <button id="btn-start" class="btn primary host-only" type="button">Tee Off!</button>
+        </div>
+        <p class="status client-only-text">Waiting for the host to start…</p>
+        <p id="lobby-status" class="status"></p>
+    </div>
+    <button id="btn-back" class="corner left btn ghost" type="button">← Leave</button>
+</div>
+
+<!-- In-game HUD -->
+<div id="hud" class="hidden">
+    <div id="hole-card">
+        <div id="hole-num">HOLE 1/9</div>
+        <div id="hole-name">First Putt</div>
+        <div class="hole-meta"><span id="hole-par">PAR 2</span><span class="sep">·</span><span>Strokes <b id="strokes">0</b></span></div>
+    </div>
+    <div id="players-hud"></div>
+    <div id="top-btns">
+        <button id="btn-view" class="icon" type="button" title="Overview (V)" aria-label="Overview">🗺️</button>
+        <button class="icon mute" type="button" aria-label="Toggle sound"><span class="on">🔊</span><span class="off">🔇</span></button>
+        <button id="btn-quit" class="icon" type="button" title="Leave" aria-label="Leave">✕</button>
+    </div>
+    <div id="timer" class="pill hidden"></div>
+    <div id="waiting" class="pill hidden">Nice! Watching the others finish…</div>
+    <div id="power" class="hidden"><div id="power-track"><div id="power-fill"></div></div><span>POWER</span></div>
+    <div id="hint">Drag back from the ball to aim · release to putt</div>
+</div>
+
+<!-- Between-hole scoreboard -->
+<div id="board" class="hidden">
+    <div class="card wide">
+        <h2 id="board-title">Scores</h2>
+        <div id="board-table" class="table-wrap"></div>
+        <p id="board-next" class="status"></p>
+    </div>
+</div>
+
+<!-- Final -->
+<div id="final" class="screen hidden">
+    <div class="card wide">
+        <h2 id="final-title">Game over</h2>
+        <div id="podium"></div>
+        <div id="final-table" class="table-wrap"></div>
+        <div class="row">
+            <button id="btn-again" class="btn primary host-only" type="button">Play Again</button>
+            <button id="btn-final-leave" class="btn" type="button">Leave</button>
+        </div>
+    </div>
+</div>
+
+<div id="banner" class="banner"></div>
+<div id="toasts"></div>
+
+<script type="module" src="js/main.js?v=1"></script>
+</body>
+</html>

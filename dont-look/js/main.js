@@ -1,6 +1,6 @@
 // Don't Look — horror multiplayer game
 import * as THREE from 'three';
-import { HostNet, ClientNet, makeCode } from './net.js?v=2';
+import { HostNet, ClientNet, makeCode } from './net.js?v=3';
 import { sfx, unlockAudio, setMuted, isMuted, tickAudio,
          startHeartbeat, stopHeartbeat, setHeartbeatRate,
          startMonsterRumble, stopMonsterRumble } from './audio.js?v=3';

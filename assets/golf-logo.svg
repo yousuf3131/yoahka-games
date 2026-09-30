@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 300">
+  <defs>
+    <linearGradient id="gsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a9be6"/><stop offset="1" stop-color="#cfe9f8"/></linearGradient>
+    <linearGradient id="ggrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fa843"/><stop offset="1" stop-color="#3f7f2c"/></linearGradient>
+    <linearGradient id="gfelt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#48b457"/><stop offset="1" stop-color="#2f9e44"/></linearGradient>
+    <linearGradient id="grail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8b97c"/><stop offset="1" stop-color="#b98348"/></linearGradient>
+    <radialGradient id="gball" cx="0.36" cy="0.32" r="0.7"><stop offset="0" stop-color="#ffffff"/><stop offset="0.6" stop-color="#eef1f4"/><stop offset="1" stop-color="#a9b1ba"/></radialGradient>
+    <radialGradient id="gshadow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#000" stop-opacity="0.35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="660" height="300" fill="url(#gsky)"/>
+  <g fill="#fff" opacity="0.9">
+    <ellipse cx="120" cy="58" rx="46" ry="16"/><ellipse cx="150" cy="48" rx="30" ry="16"/>
+    <ellipse cx="520" cy="44" rx="40" ry="13"/><ellipse cx="548" cy="36" rx="24" ry="13"/>
+  </g>
+  <path d="M0 170 Q160 150 330 160 T660 165 V300 H0Z" fill="url(#ggrass)"/>
+  <g fill="#3b7a2a"><circle cx="58" cy="160" r="26"/><circle cx="84" cy="150" r="22"/><circle cx="610" cy="156" r="28"/><circle cx="584" cy="164" r="20"/></g>
+  <g fill="#6b4a2a"><rect x="66" y="170" width="7" height="22"/><rect x="600" y="172" width="7" height="22"/></g>
+  <!-- fairway with rails -->
+  <path d="M120 285 L210 190 L450 190 L540 285 Z" fill="#8f877e"/>
+  <path d="M130 272 L214 196 L446 196 L530 272 Z" fill="url(#grail)"/>
+  <path d="M146 268 L222 202 L438 202 L514 268 Z" fill="url(#gfelt)"/>
+  <path d="M190 230 L470 230 L482 240 L178 240 Z" fill="#fff" opacity="0.06"/>
+  <!-- cup + flag -->
+  <ellipse cx="400" cy="214" rx="16" ry="5" fill="#0f172a"/>
+  <rect x="398" y="118" width="4" height="96" rx="2" fill="#f8fafc"/>
+  <path d="M402 120 Q430 126 452 120 Q440 132 452 144 Q430 138 402 144 Z" fill="#ef4444"/>
+  <!-- ball + dotted path -->
+  <g fill="#fff" opacity="0.85"><circle cx="300" cy="238" r="3"/><circle cx="322" cy="232" r="2.8"/><circle cx="344" cy="226" r="2.6"/><circle cx="364" cy="221" r="2.4"/><circle cx="382" cy="217" r="2.2"/></g>
+  <ellipse cx="272" cy="258" rx="26" ry="7" fill="url(#gshadow)"/>
+  <circle cx="270" cy="240" r="19" fill="url(#gball)"/>
+  <g fill="#c6ccd3" opacity="0.8"><circle cx="262" cy="236" r="2"/><circle cx="272" cy="232" r="2"/><circle cx="280" cy="240" r="2"/><circle cx="268" cy="246" r="2"/></g>
+  <!-- title -->
+  <g font-family="'Fredoka','Trebuchet MS','Arial Rounded MT Bold',Arial,sans-serif" font-weight="800" text-anchor="middle">
+    <text x="330" y="112" font-size="76" fill="#14532d" opacity="0.25" transform="translate(3 5)">PUTT PARTY</text>
+    <text x="330" y="112" font-size="76" fill="#ffffff" stroke="#1f6b35" stroke-width="3" paint-order="stroke">PUTT <tspan fill="#fbbf24">PARTY</tspan></text>
+  </g>
+</svg>
