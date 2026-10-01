@@ -1,4 +1,4 @@
-// Prop Hunt — 3D first-person hide-and-seek
+// Prop Hunt — CoD-style third-person hide-and-seek
 import * as THREE from 'three';
 import { HostNet, ClientNet, makeCode } from './net.js';
 import { sfx, unlockAudio, setMuted, isMuted } from './audio.js';
@@ -18,63 +18,68 @@ const lerpAngle = (a, b, t) => {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const MAX_PLAYERS    = 8;
-const MOVE_SPEED     = 5.0;
-const HIDER_SPEED    = 3.0; // 60% of seeker speed
-const ACCEL          = 16;
-const FRICTION       = 12;
+const MOVE_SPEED     = 6.0;
+const HIDER_SPEED    = 4.2;
+const ACCEL          = 14;
+const FRICTION       = 10;
 const PLAYER_R       = 0.35;
-const PLAYER_HEIGHT  = 1.7;
 const SEND_EVERY     = 0.05;
-const HIDE_TIME      = 20;
-const SEEK_TIME      = 90;
+const HIDE_TIME      = 30;
+const SEEK_TIME      = 120;
 const ROUNDS_TOTAL   = 3;
-const SHOOT_COOLDOWN = 0.35;
+const SHOOT_COOLDOWN = 0.4;
 const SEEKER_HP      = 100;
 const PROP_HIT_DMG   = 10;
-const ROOM_W         = 20;
-const ROOM_H         = 20;
-const WALL_H         = 4;
+const DECOY_HIT_DMG  = 10;
+const MAX_DECOYS     = 3;
+const INTERACT_RANGE = 3.0;
+const ROOM_W         = 28;
+const ROOM_H         = 28;
+const WALL_H         = 6;
+
+const CAM_DIST   = 8;
+const CAM_HEIGHT = 5;
+const CAM_PITCH_DEFAULT = 0.45;
 
 const COLORS = ['#e0584f','#3b82f6','#2ec495','#f2c14e','#a78bfa','#f97316','#ec4899','#e2e8f0'];
 const BOT_NAMES = ['Barrel Bob','Chair Carl','Lamp Larry','Vase Val','Box Bart','Bucket Ben','Crate Craig','Shadow'];
 
 // ── Prop Definitions ──────────────────────────────────────────────────────
 const PROP_DEFS = [
-    { name: 'Barrel', icon: '\u{1F6E2}', color: 0x8B5E3C, createGeom: () => new THREE.CylinderGeometry(0.38, 0.42, 0.85, 16), oy: 0.425 },
-    { name: 'Crate',  icon: '\u{1F4E6}', color: 0xA0784C, createGeom: () => new THREE.BoxGeometry(0.7, 0.7, 0.7), oy: 0.35 },
-    { name: 'Chair',  icon: '\u{1FA91}', color: 0x5C3A1E, createGeom: () => new THREE.BoxGeometry(0.45, 0.45, 0.45), oy: 0.225, buildGroup: true },
-    { name: 'Lamp',   icon: '\u{1F4A1}', color: 0xF5E6B8, createGeom: () => new THREE.CylinderGeometry(0.12, 0.28, 1.2, 12), oy: 0.6 },
-    { name: 'Vase',   icon: '\u{1F3FA}', color: 0x4A90D9, createGeom: () => {
+    { name: 'Barrel', color: 0x8B5E3C, createGeom: () => new THREE.CylinderGeometry(0.38, 0.42, 0.85, 16), oy: 0.425 },
+    { name: 'Crate',  color: 0xA0784C, createGeom: () => new THREE.BoxGeometry(0.7, 0.7, 0.7), oy: 0.35 },
+    { name: 'Chair',  color: 0x5C3A1E, createGeom: null, oy: 0.45, buildGroup: true },
+    { name: 'Lamp',   color: 0xF5E6B8, createGeom: () => new THREE.CylinderGeometry(0.12, 0.28, 1.2, 12), oy: 0.6 },
+    { name: 'Vase',   color: 0x4A90D9, createGeom: () => {
         const pts = [new THREE.Vector2(0,0), new THREE.Vector2(0.25,0), new THREE.Vector2(0.3,0.15),
             new THREE.Vector2(0.2,0.5), new THREE.Vector2(0.15,0.6), new THREE.Vector2(0.22,0.75),
             new THREE.Vector2(0.18,0.85), new THREE.Vector2(0.12,0.9), new THREE.Vector2(0,0.9)];
         return new THREE.LatheGeometry(pts, 16);
     }, oy: 0 },
-    { name: 'Bucket', icon: '\u{1FAA3}', color: 0x888888, createGeom: () => new THREE.CylinderGeometry(0.28, 0.35, 0.5, 14), oy: 0.25 },
+    { name: 'Bucket', color: 0x888888, createGeom: () => new THREE.CylinderGeometry(0.28, 0.35, 0.5, 14), oy: 0.25 },
 ];
 
 // ── State ─────────────────────────────────────────────────────────────────
 let myName = (() => { try { return localStorage.getItem('prophuntName') || ''; } catch { return ''; } })();
 let role = null, net = null, myId = null, roomCode = '', view = 'menu';
 let gameActive = false, sendTimer = 0;
-let phase = 'lobby'; // lobby, hiding, seeking, roundEnd, matchEnd
-let myTeam = 'hider'; // hider or seeker
-let myPropIdx = 0;
-let myLocked = false;
+let phase = 'lobby';
+let myTeam = 'hider';
+let myPropType = -1;
+let myDecoys = MAX_DECOYS;
 let myHP = SEEKER_HP;
 let shootCooldown = 0;
 let phaseTimer = 0;
 let hidersAlive = 0;
+let nearestProp = null;
 
-const players = new Map(); // id -> { x, z, yaw, pitch, team, propIdx, alive, locked, hp, name, color, bot, mesh, targetX, targetZ, targetYaw }
+const players = new Map();
 let me = null;
 
-// Match state
 let currentRound = 1;
 let seekerScore = 0;
 let hiderScore = 0;
 
-// Host state
 const H = {
     players: [],
     phase: 'lobby',
@@ -82,23 +87,27 @@ const H = {
     round: 1,
     seekerScore: 0,
     hiderScore: 0,
-    staticProps: [],     // positions of real props in the scene
+    decoys: [],
+    nextDecoyId: 0,
     eliminatedHiders: new Set(),
 };
 
-// Input
 let vx = 0, vz = 0;
 let keys = {};
 let mouseDx = 0, mouseDy = 0;
 let lastStepT = 0;
 
-// ── Three.js Scene ────────────────────────────────────────────────────────
+// Camera
+let camYaw = 0;
+let camPitch = CAM_PITCH_DEFAULT;
+let camPos = new THREE.Vector3(0, 15, 15);
+let camTarget = new THREE.Vector3(0, 0, 0);
+
+// ── Three.js ──────────────────────────────────────────────────────────────
 let renderer, scene, camera, clock;
-let flashlight = null;
-let flashCone = null;
 const playerMeshes = new Map();
 const staticPropMeshes = [];
-const staticPropIds = new Set();
+const decoyMeshes = new Map();
 let particles = [];
 
 function initThree() {
@@ -108,57 +117,39 @@ function initThree() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.8;
+    renderer.toneMappingExposure = 1.2;
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0810);
-    scene.fog = new THREE.FogExp2(0x0a0810, 0.04);
+    scene.background = new THREE.Color(0x88aabb);
+    scene.fog = new THREE.Fog(0x88aabb, 35, 60);
 
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, PLAYER_HEIGHT, 0);
-
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 15, 15);
     clock = new THREE.Clock();
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0x404060, 0.3);
-    scene.add(ambient);
+    // Hemisphere light (sky/ground)
+    const hemi = new THREE.HemisphereLight(0x99bbdd, 0x443322, 0.6);
+    scene.add(hemi);
 
-    // Directional light (main shadow caster)
-    const dirLight = new THREE.DirectionalLight(0xffeedd, 0.4);
-    dirLight.position.set(5, 10, 5);
+    // Main directional light
+    const dirLight = new THREE.DirectionalLight(0xfff0dd, 1.2);
+    dirLight.position.set(8, 18, 6);
     dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 30;
-    dirLight.shadow.camera.left = -12;
-    dirLight.shadow.camera.right = 12;
-    dirLight.shadow.camera.top = 12;
-    dirLight.shadow.camera.bottom = -12;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = 50;
+    const s = 18;
+    dirLight.shadow.camera.left = -s;
+    dirLight.shadow.camera.right = s;
+    dirLight.shadow.camera.top = s;
+    dirLight.shadow.camera.bottom = -s;
     dirLight.shadow.bias = -0.002;
     scene.add(dirLight);
 
-    // Point lights in corners for atmosphere
-    const cornerPositions = [
-        [-ROOM_W/2 + 1, WALL_H - 0.5, -ROOM_H/2 + 1],
-        [ROOM_W/2 - 1, WALL_H - 0.5, -ROOM_H/2 + 1],
-        [-ROOM_W/2 + 1, WALL_H - 0.5, ROOM_H/2 - 1],
-        [ROOM_W/2 - 1, WALL_H - 0.5, ROOM_H/2 - 1],
-    ];
-    for (const [px, py, pz] of cornerPositions) {
-        const pl = new THREE.PointLight(0xffcc88, 0.6, 14, 1.5);
-        pl.position.set(px, py, pz);
-        pl.castShadow = false;
-        scene.add(pl);
-
-        // Small light bulb mesh
-        const bulb = new THREE.Mesh(
-            new THREE.SphereGeometry(0.08, 8, 8),
-            new THREE.MeshBasicMaterial({ color: 0xffcc88 })
-        );
-        bulb.position.set(px, py, pz);
-        scene.add(bulb);
-    }
+    // Fill light
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.3);
+    fill.position.set(-6, 10, -8);
+    scene.add(fill);
 
     buildRoom();
 
@@ -169,104 +160,130 @@ function initThree() {
     });
 }
 
+// ── Room ──────────────────────────────────────────────────────────────────
 function buildRoom() {
-    // Floor
-    const floorMat = new THREE.MeshStandardMaterial({
-        color: 0x3a3a44, roughness: 0.85, metalness: 0.1,
-    });
+    // Floor — concrete warehouse
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x9a9080, roughness: 0.9, metalness: 0.05 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_H), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Walls
-    const wallMat = new THREE.MeshStandardMaterial({
-        color: 0x2a2530, roughness: 0.9, metalness: 0.05,
-    });
-    const wallGeo = new THREE.PlaneGeometry(ROOM_W, WALL_H);
-    const walls = [
-        { pos: [0, WALL_H / 2, -ROOM_H / 2], rot: [0, 0, 0] },
-        { pos: [0, WALL_H / 2, ROOM_H / 2], rot: [0, Math.PI, 0] },
-        { pos: [-ROOM_W / 2, WALL_H / 2, 0], rot: [0, Math.PI / 2, 0] },
-        { pos: [ROOM_W / 2, WALL_H / 2, 0], rot: [0, -Math.PI / 2, 0] },
-    ];
-    for (const w of walls) {
-        const wm = new THREE.Mesh(wallGeo, wallMat);
-        wm.position.set(...w.pos);
-        wm.rotation.set(...w.rot);
-        wm.receiveShadow = true;
-        scene.add(wm);
+    // Floor grid lines
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0x807060, transparent: true, opacity: 0.3 });
+    for (let x = -ROOM_W / 2; x <= ROOM_W / 2; x += 4) {
+        const l = new THREE.Mesh(new THREE.PlaneGeometry(0.04, ROOM_H), lineMat);
+        l.rotation.x = -Math.PI / 2; l.position.set(x, 0.005, 0);
+        scene.add(l);
+    }
+    for (let z = -ROOM_H / 2; z <= ROOM_H / 2; z += 4) {
+        const l = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, 0.04), lineMat);
+        l.rotation.x = -Math.PI / 2; l.position.set(0, 0.005, z);
+        scene.add(l);
     }
 
-    // Ceiling
-    const ceilMat = new THREE.MeshStandardMaterial({ color: 0x1a1520, roughness: 1, metalness: 0 });
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_H), ceilMat);
-    ceil.rotation.x = Math.PI / 2;
-    ceil.position.y = WALL_H;
-    scene.add(ceil);
-
-    // Furniture (shelves, tables)
-    const furnitureMat = new THREE.MeshStandardMaterial({ color: 0x5c4a3a, roughness: 0.7, metalness: 0.1 });
-    const shelfMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.8, metalness: 0.05 });
-
-    // Tables
-    const tableDefs = [
-        { x: -5, z: -5, w: 2.5, d: 1, h: 0.8 },
-        { x: 4, z: 6, w: 1.5, d: 2, h: 0.75 },
-        { x: -7, z: 4, w: 1.8, d: 1.2, h: 0.85 },
-        { x: 6, z: -6, w: 2, d: 1, h: 0.8 },
+    // Walls
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.85, metalness: 0.05 });
+    const wallGeo = new THREE.PlaneGeometry(ROOM_W + 1, WALL_H);
+    const wallDefs = [
+        { pos: [0, WALL_H / 2, -ROOM_H / 2], rot: [0, 0, 0] },
+        { pos: [0, WALL_H / 2, ROOM_H / 2],  rot: [0, Math.PI, 0] },
     ];
-    for (const t of tableDefs) {
-        const top = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.08, t.d), furnitureMat);
-        top.position.set(t.x, t.h, t.z);
-        top.castShadow = true; top.receiveShadow = true;
-        scene.add(top);
+    const sideWallGeo = new THREE.PlaneGeometry(ROOM_H + 1, WALL_H);
+    const sideWallDefs = [
+        { pos: [-ROOM_W / 2, WALL_H / 2, 0], rot: [0, Math.PI / 2, 0] },
+        { pos: [ROOM_W / 2, WALL_H / 2, 0],  rot: [0, -Math.PI / 2, 0] },
+    ];
+    for (const w of wallDefs) {
+        const m = new THREE.Mesh(wallGeo, wallMat);
+        m.position.set(...w.pos); m.rotation.set(...w.rot); m.receiveShadow = true;
+        scene.add(m);
+    }
+    for (const w of sideWallDefs) {
+        const m = new THREE.Mesh(sideWallGeo, wallMat);
+        m.position.set(...w.pos); m.rotation.set(...w.rot); m.receiveShadow = true;
+        scene.add(m);
+    }
 
-        // Legs
+    // Wall accent stripe
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0x6a5a4a, roughness: 0.8 });
+    for (const z of [-ROOM_H / 2, ROOM_H / 2]) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, 0.3, 0.06), stripeMat);
+        stripe.position.set(0, 1.2, z + (z > 0 ? -0.02 : 0.02));
+        scene.add(stripe);
+    }
+
+    // Furniture — tables
+    const furnitureMat = new THREE.MeshStandardMaterial({ color: 0x6a5a42, roughness: 0.7, metalness: 0.1 });
+    const tables = [
+        { x: -8, z: -8, w: 2.5, d: 1.2, h: 0.8 },
+        { x: 6, z: 8, w: 2, d: 1.5, h: 0.75 },
+        { x: -9, z: 6, w: 1.8, d: 1, h: 0.85 },
+        { x: 8, z: -6, w: 2.2, d: 1.2, h: 0.8 },
+        { x: 0, z: -10, w: 3, d: 1, h: 0.82 },
+        { x: -3, z: 3, w: 1.6, d: 1.6, h: 0.78 },
+    ];
+    for (const t of tables) {
+        const top = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.08, t.d), furnitureMat);
+        top.position.set(t.x, t.h, t.z); top.castShadow = true; top.receiveShadow = true;
+        scene.add(top);
         const legGeo = new THREE.CylinderGeometry(0.04, 0.04, t.h - 0.04, 6);
-        for (const [lx, lz] of [[t.w/2 - 0.08, t.d/2 - 0.08], [-t.w/2 + 0.08, t.d/2 - 0.08],
-                                  [t.w/2 - 0.08, -t.d/2 + 0.08], [-t.w/2 + 0.08, -t.d/2 + 0.08]]) {
+        for (const [lx, lz] of [[t.w/2-0.08, t.d/2-0.08], [-t.w/2+0.08, t.d/2-0.08],
+                                  [t.w/2-0.08, -t.d/2+0.08], [-t.w/2+0.08, -t.d/2+0.08]]) {
             const leg = new THREE.Mesh(legGeo, furnitureMat);
-            leg.position.set(t.x + lx, (t.h - 0.04) / 2, t.z + lz);
-            leg.castShadow = true;
+            leg.position.set(t.x+lx, (t.h-0.04)/2, t.z+lz); leg.castShadow = true;
             scene.add(leg);
         }
     }
 
     // Shelving units against walls
-    const shelfDefs = [
-        { x: -ROOM_W/2 + 0.4, z: -3, w: 0.6, d: 2.5, h: 2.5, ry: 0 },
-        { x: ROOM_W/2 - 0.4, z: 2, w: 0.6, d: 3, h: 2.2, ry: 0 },
-        { x: 2, z: -ROOM_H/2 + 0.4, w: 3, d: 0.6, h: 2.8, ry: 0 },
-        { x: -3, z: ROOM_H/2 - 0.4, w: 2.5, d: 0.6, h: 2, ry: 0 },
+    const shelfMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.8, metalness: 0.05 });
+    const shelves = [
+        { x: -ROOM_W/2+0.5, z: -5, w: 0.8, d: 3, h: 2.8 },
+        { x: -ROOM_W/2+0.5, z: 6, w: 0.8, d: 2.5, h: 2.4 },
+        { x: ROOM_W/2-0.5, z: 3, w: 0.8, d: 3.5, h: 2.6 },
+        { x: ROOM_W/2-0.5, z: -7, w: 0.8, d: 2, h: 3 },
+        { x: 4, z: -ROOM_H/2+0.5, w: 3, d: 0.8, h: 2.5 },
+        { x: -6, z: ROOM_H/2-0.5, w: 3.5, d: 0.8, h: 2.2 },
     ];
-    for (const s of shelfDefs) {
+    for (const s of shelves) {
         const shelf = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), shelfMat);
-        shelf.position.set(s.x, s.h / 2, s.z);
-        shelf.castShadow = true; shelf.receiveShadow = true;
+        shelf.position.set(s.x, s.h/2, s.z); shelf.castShadow = true; shelf.receiveShadow = true;
         scene.add(shelf);
     }
 
-    // Scattered real props (static - these are "real" props seekers should not shoot)
+    // Pillars for cover
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.75, metalness: 0.1 });
+    for (const [px, pz] of [[-5, 0], [5, 0], [0, -5], [0, 5]]) {
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, WALL_H, 12), pillarMat);
+        pillar.position.set(px, WALL_H/2, pz); pillar.castShadow = true; pillar.receiveShadow = true;
+        scene.add(pillar);
+    }
+
     placeStaticProps();
 }
 
 // ── Static props ──────────────────────────────────────────────────────────
 const STATIC_PROP_POSITIONS = [
     // Barrels
-    { type: 0, x: -7, z: -7 }, { type: 0, x: -6.5, z: -7.5 }, { type: 0, x: 8, z: -3 },
-    { type: 0, x: 7, z: 7 }, { type: 0, x: -3, z: 8 },
+    { type: 0, x: -10, z: -10 }, { type: 0, x: -9.5, z: -10.5 }, { type: 0, x: 11, z: -4 },
+    { type: 0, x: 9, z: 9 }, { type: 0, x: -4, z: 11 }, { type: 0, x: 6, z: -11 },
+    { type: 0, x: -12, z: 2 },
     // Crates
-    { type: 1, x: -8, z: 2 }, { type: 1, x: -8.5, z: 2.5 }, { type: 1, x: 5, z: -8 },
-    { type: 1, x: 3, z: 5 }, { type: 1, x: -4, z: -3 },
+    { type: 1, x: -11, z: 3 }, { type: 1, x: -11.5, z: 3.5 }, { type: 1, x: 7, z: -10 },
+    { type: 1, x: 4, z: 7 }, { type: 1, x: -5, z: -4 }, { type: 1, x: 10, z: 5 },
+    { type: 1, x: -8, z: -2 },
     // Chairs
-    { type: 2, x: -5, z: -4.5 }, { type: 2, x: 4.5, z: 6.5 }, { type: 2, x: -7.5, z: 4.5 },
+    { type: 2, x: -8, z: -7.5 }, { type: 2, x: 6.5, z: 8.5 }, { type: 2, x: -9.5, z: 6.5 },
+    { type: 2, x: 8.5, z: -5.5 }, { type: 2, x: 0.5, z: -10.5 },
     // Lamps
-    { type: 3, x: -5, z: -5.5 }, { type: 3, x: 4, z: 5.5 }, { type: 3, x: 6.5, z: -6.5 },
+    { type: 3, x: -8, z: -8.5 }, { type: 3, x: 6, z: 7.5 }, { type: 3, x: 8.5, z: -6.5 },
+    { type: 3, x: -3, z: 3.5 },
     // Vases
-    { type: 4, x: -8, z: -1 }, { type: 4, x: 7, z: 4 },
+    { type: 4, x: -11, z: -1 }, { type: 4, x: 9, z: 6 }, { type: 4, x: 3, z: -8 },
     // Buckets
-    { type: 5, x: 2, z: -4 }, { type: 5, x: -2, z: 6 },
+    { type: 5, x: 3, z: -5 }, { type: 5, x: -3, z: 8 }, { type: 5, x: -7, z: -1 },
+    { type: 5, x: 11, z: 0 },
 ];
 
 function placeStaticProps() {
@@ -279,93 +296,73 @@ function placeStaticProps() {
         scene.add(mesh);
         staticPropMeshes.push(mesh);
         mesh.userData.staticPropIdx = i;
-        mesh.userData.isStaticProp = true;
+        mesh.userData.propType = sp.type;
     }
 }
 
+// ── Prop mesh creation ────────────────────────────────────────────────────
 function createPropMesh(typeIdx) {
     const def = PROP_DEFS[typeIdx];
 
     if (def.buildGroup && def.name === 'Chair') {
-        // Build a chair from parts
         const group = new THREE.Group();
         const mat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.7, metalness: 0.1 });
-
-        // Seat
         const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.05, 0.45), mat);
-        seat.position.y = 0.42;
-        seat.castShadow = true;
+        seat.position.y = 0.42; seat.castShadow = true;
         group.add(seat);
-
-        // Back
         const back = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.04), mat);
-        back.position.set(0, 0.67, -0.2);
-        back.castShadow = true;
+        back.position.set(0, 0.67, -0.2); back.castShadow = true;
         group.add(back);
-
-        // Legs
         const legGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.42, 6);
-        for (const [lx, lz] of [[0.18, 0.18], [-0.18, 0.18], [0.18, -0.18], [-0.18, -0.18]]) {
+        for (const [lx, lz] of [[0.18,0.18],[-0.18,0.18],[0.18,-0.18],[-0.18,-0.18]]) {
             const leg = new THREE.Mesh(legGeo, mat);
-            leg.position.set(lx, 0.21, lz);
-            leg.castShadow = true;
+            leg.position.set(lx, 0.21, lz); leg.castShadow = true;
             group.add(leg);
         }
         return group;
     }
 
     const geom = def.createGeom();
-    const mat = new THREE.MeshStandardMaterial({
-        color: def.color, roughness: 0.65, metalness: 0.15,
-    });
+    const mat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.65, metalness: 0.15 });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = true; mesh.receiveShadow = true;
     return mesh;
 }
 
-// ── Flashlight for seekers ────────────────────────────────────────────────
-function createFlashlight() {
-    if (flashlight) return;
-    flashlight = new THREE.SpotLight(0xfff5e0, 2.5, 20, Math.PI / 6, 0.4, 1.2);
-    flashlight.castShadow = true;
-    flashlight.shadow.mapSize.width = 512;
-    flashlight.shadow.mapSize.height = 512;
-    camera.add(flashlight);
-    flashlight.position.set(0, -0.1, -0.3);
-    flashlight.target.position.set(0, -0.1, -5);
-    camera.add(flashlight.target);
-
-    // Volumetric cone mesh
-    const coneGeo = new THREE.ConeGeometry(3, 12, 16, 1, true);
-    const coneMat = new THREE.MeshBasicMaterial({
-        color: 0xfff5e0, transparent: true, opacity: 0.03,
-        side: THREE.DoubleSide, depthWrite: false,
-    });
-    flashCone = new THREE.Mesh(coneGeo, coneMat);
-    flashCone.rotation.x = Math.PI / 2;
-    flashCone.position.set(0, -0.1, -6.3);
-    camera.add(flashCone);
-}
-
-function removeFlashlight() {
-    if (flashlight) { camera.remove(flashlight); camera.remove(flashlight.target); flashlight = null; }
-    if (flashCone) { camera.remove(flashCone); flashCone = null; }
-}
-
 // ── Player mesh management ────────────────────────────────────────────────
+function createCharacterMesh(color) {
+    const group = new THREE.Group();
+    const c = new THREE.Color(color);
+
+    // Body
+    const body = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.25, 0.6, 8, 12),
+        new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.2 })
+    );
+    body.position.y = 0.85;
+    body.castShadow = true;
+    group.add(body);
+
+    // Head
+    const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xe8c8a0, roughness: 0.7, metalness: 0.05 })
+    );
+    head.position.y = 1.38;
+    head.castShadow = true;
+    group.add(head);
+
+    return group;
+}
+
 function getOrCreatePlayerMesh(id, p) {
     if (playerMeshes.has(id)) return playerMeshes.get(id);
 
     let mesh;
-    if (p.team === 'hider') {
-        mesh = createPropMesh(p.propIdx || 0);
+    if (p.propType >= 0) {
+        mesh = createPropMesh(p.propType);
     } else {
-        // Seekers are capsule-shaped
-        const geo = new THREE.CapsuleGeometry(0.25, 0.8, 8, 12);
-        const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.color), roughness: 0.6, metalness: 0.2 });
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.castShadow = true;
+        mesh = createCharacterMesh(p.color);
     }
     mesh.userData.playerId = id;
     scene.add(mesh);
@@ -378,14 +375,36 @@ function removePlayerMesh(id) {
     if (m) { scene.remove(m); playerMeshes.delete(id); }
 }
 
-function updatePlayerMeshProp(id, p) {
+function rebuildPlayerMesh(id) {
+    const p = players.get(id);
+    if (!p) return;
     removePlayerMesh(id);
     getOrCreatePlayerMesh(id, p);
 }
 
-// ── Particle effects ──────────────────────────────────────────────────────
-function spawnHitParticles(pos, color, count = 12) {
-    const mat = new THREE.MeshBasicMaterial({ color });
+// ── Decoy management ──────────────────────────────────────────────────────
+function addDecoyMesh(id, x, z, propType, rot) {
+    const def = PROP_DEFS[propType];
+    const mesh = createPropMesh(propType);
+    mesh.position.set(x, def.oy, z);
+    mesh.rotation.y = rot || 0;
+    mesh.userData.decoyId = id;
+    scene.add(mesh);
+    decoyMeshes.set(id, mesh);
+}
+
+function removeDecoyMesh(id) {
+    const m = decoyMeshes.get(id);
+    if (m) { scene.remove(m); decoyMeshes.delete(id); }
+}
+
+function clearDecoys() {
+    for (const [id] of decoyMeshes) removeDecoyMesh(id);
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────
+function spawnParticles(pos, color, count = 12) {
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true });
     for (let i = 0; i < count; i++) {
         const geo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
         const m = new THREE.Mesh(geo, mat);
@@ -400,6 +419,10 @@ function spawnHitParticles(pos, color, count = 12) {
     }
 }
 
+function spawnTransformParticles(x, y, z) {
+    spawnParticles(new THREE.Vector3(x, y + 0.5, z), 0xaa88ff, 18);
+}
+
 function updateParticles(dt) {
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
@@ -407,11 +430,7 @@ function updateParticles(dt) {
         p.vel.y -= 9.8 * dt;
         p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
         p.mesh.material.opacity = Math.max(0, p.life);
-        p.mesh.material.transparent = true;
-        if (p.life <= 0) {
-            scene.remove(p.mesh);
-            particles.splice(i, 1);
-        }
+        if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
     }
 }
 
@@ -434,6 +453,12 @@ function showHitMarker() {
     const hm = $('hitmarker');
     hm.classList.add('show');
     setTimeout(() => hm.classList.remove('show'), 200);
+}
+function constrainToRoom(p) {
+    const hw = ROOM_W / 2 - PLAYER_R;
+    const hh = ROOM_H / 2 - PLAYER_R;
+    p.x = clamp(p.x, -hw, hw);
+    p.z = clamp(p.z, -hh, hh);
 }
 
 // ── Networking helpers ────────────────────────────────────────────────────
@@ -465,25 +490,35 @@ function hostHandle(from, msg) {
             const p = players.get(from);
             if (p && from !== myId) {
                 p.targetX = msg.x; p.targetZ = msg.z; p.targetYaw = msg.yaw;
-                if (msg.pi !== undefined) p.propIdx = msg.pi;
-                if (msg.lk !== undefined) p.locked = !!msg.lk;
             }
             break;
         }
-        case 'propChoice': {
-            if (!gameActive || H.phase !== 'hiding') return;
+        case 'transform': {
+            if (!gameActive) return;
             const p = players.get(from);
-            if (p && p.team === 'hider') {
-                p.propIdx = clamp(msg.idx, 0, PROP_DEFS.length - 1);
-                emit({ t: 'propUpdate', id: from, idx: p.propIdx });
+            if (p && p.team === 'hider' && p.alive) {
+                p.propType = clamp(msg.pt, 0, PROP_DEFS.length - 1);
+                emit({ t: 'transformed', id: from, pt: p.propType });
             }
+            break;
+        }
+        case 'decoy': {
+            if (!gameActive) return;
+            const p = players.get(from);
+            if (!p || p.team !== 'hider' || !p.alive || p.propType < 0) return;
+            if ((p.decoysLeft || 0) <= 0) return;
+            p.decoysLeft--;
+            const decoyId = H.nextDecoyId++;
+            const decoy = { id: decoyId, x: msg.x, z: msg.z, pt: p.propType, rot: p.yaw || 0 };
+            H.decoys.push(decoy);
+            emit({ t: 'decoySpawn', ...decoy });
             break;
         }
         case 'shoot': {
             if (!gameActive || H.phase !== 'seeking') return;
             const p = players.get(from);
             if (!p || p.team !== 'seeker' || !p.alive) return;
-            // Check what was hit
+
             if (msg.hitPlayer) {
                 const target = players.get(msg.hitPlayer);
                 if (target && target.team === 'hider' && target.alive) {
@@ -493,22 +528,18 @@ function hostHandle(from, msg) {
                     hostCheckRoundEnd();
                 }
             } else if (msg.hitStatic !== undefined) {
-                // Hit a real prop - seeker loses HP
                 p.hp = Math.max(0, (p.hp || SEEKER_HP) - PROP_HIT_DMG);
                 emit({ t: 'damage', id: from, hp: p.hp });
-                if (p.hp <= 0) {
-                    p.alive = false;
-                    emit({ t: 'seekerDown', id: from });
-                    hostCheckRoundEnd();
+                if (p.hp <= 0) { p.alive = false; emit({ t: 'seekerDown', id: from }); hostCheckRoundEnd(); }
+            } else if (msg.hitDecoy !== undefined) {
+                const dIdx = H.decoys.findIndex(d => d.id === msg.hitDecoy);
+                if (dIdx >= 0) {
+                    H.decoys.splice(dIdx, 1);
+                    p.hp = Math.max(0, (p.hp || SEEKER_HP) - DECOY_HIT_DMG);
+                    emit({ t: 'decoyDestroyed', id: msg.hitDecoy });
+                    emit({ t: 'damage', id: from, hp: p.hp });
+                    if (p.hp <= 0) { p.alive = false; emit({ t: 'seekerDown', id: from }); hostCheckRoundEnd(); }
                 }
-            }
-            break;
-        }
-        case 'lock': {
-            if (!gameActive) return;
-            const p = players.get(from);
-            if (p && p.team === 'hider') {
-                p.locked = !!msg.v;
             }
             break;
         }
@@ -558,128 +589,78 @@ function hostStartGame() {
     const humans = H.players.filter(p => !p.bot);
     const notReady = humans.filter(p => p.id !== myId && !p.ready);
     if (notReady.length > 0) { setStatus('lobby-status', `${notReady[0].name} isn't ready.`, true); return; }
-
-    H.round = 1;
-    H.seekerScore = 0;
-    H.hiderScore = 0;
+    H.round = 1; H.seekerScore = 0; H.hiderScore = 0;
     hostStartRound();
 }
 
 function hostStartRound() {
     H.phase = 'hiding';
-    H.phaseTimer = HIDE_TIME + 3; // +3 for initial countdown
+    H.phaseTimer = HIDE_TIME + 3;
     H.eliminatedHiders = new Set();
+    H.decoys = [];
+    H.nextDecoyId = 0;
 
-    // Assign teams
     const n = H.players.length;
-    const nHiders = Math.max(1, Math.floor(n / 2));
-    // Shuffle for team assignment, alternate by round
+    const nSeekers = Math.max(1, Math.floor(n / 3));
     const shuffled = [...H.players].sort(() => Math.random() - 0.5);
-    const hiderSet = new Set();
-    for (let i = 0; i < nHiders; i++) hiderSet.add(shuffled[i].id);
-
-    // Odd rounds: swap who was hider/seeker
+    const seekerSet = new Set();
+    for (let i = 0; i < nSeekers; i++) seekerSet.add(shuffled[i].id);
     if (H.round % 2 === 0) {
-        const temp = new Set(hiderSet);
-        hiderSet.clear();
-        for (const p of H.players) {
-            if (!temp.has(p.id)) hiderSet.add(p.id);
-        }
+        const temp = new Set(seekerSet);
+        seekerSet.clear();
+        for (const p of H.players) { if (!temp.has(p.id)) seekerSet.add(p.id); }
     }
 
     const spawns = H.players.map((p, i) => {
-        const team = hiderSet.has(p.id) ? 'hider' : 'seeker';
+        const team = seekerSet.has(p.id) ? 'seeker' : 'hider';
         const angle = (i / n) * Math.PI * 2;
-        const r = team === 'hider' ? 3 : 1;
-        const sx = Math.cos(angle) * r;
-        const sz = Math.sin(angle) * r;
+        const r = team === 'hider' ? 5 : 1;
         return {
             id: p.id, name: p.name, color: p.color, bot: p.bot,
-            team, x: sx, z: sz, propIdx: Math.floor(Math.random() * PROP_DEFS.length),
+            team, x: Math.cos(angle) * r, z: Math.sin(angle) * r,
+            hp: team === 'seeker' ? SEEKER_HP : 0,
         };
     });
 
-    // Initialize HP for seekers
-    for (const s of spawns) {
-        if (s.team === 'seeker') s.hp = SEEKER_HP;
-    }
-
     emit({
-        t: 'roundStart',
-        spawns,
-        round: H.round,
-        totalRounds: ROUNDS_TOTAL,
-        seekerScore: H.seekerScore,
-        hiderScore: H.hiderScore,
+        t: 'roundStart', spawns, round: H.round, totalRounds: ROUNDS_TOTAL,
+        seekerScore: H.seekerScore, hiderScore: H.hiderScore,
     });
 }
 
 function hostCheckRoundEnd() {
-    // Count alive hiders and seekers
     const aliveHiders = [...players.values()].filter(p => p.team === 'hider' && p.alive);
     const aliveSeekers = [...players.values()].filter(p => p.team === 'seeker' && p.alive);
-
-    if (aliveHiders.length === 0) {
-        // Seekers win this round
-        H.seekerScore++;
-        hostEndRound('seekers');
-    } else if (aliveSeekers.length === 0) {
-        // Hiders win (all seekers eliminated by shooting real props)
-        H.hiderScore++;
-        hostEndRound('hiders');
-    }
+    if (aliveHiders.length === 0) { H.seekerScore++; hostEndRound('seekers'); }
+    else if (aliveSeekers.length === 0) { H.hiderScore++; hostEndRound('hiders'); }
 }
 
 function hostEndRound(winner) {
     H.phase = 'roundEnd';
     gameActive = false;
-    emit({
-        t: 'roundEnd',
-        winner,
-        round: H.round,
-        seekerScore: H.seekerScore,
-        hiderScore: H.hiderScore,
-    });
-
+    emit({ t: 'roundEnd', winner, round: H.round, seekerScore: H.seekerScore, hiderScore: H.hiderScore });
     if (H.round >= ROUNDS_TOTAL || H.seekerScore > ROUNDS_TOTAL / 2 || H.hiderScore > ROUNDS_TOTAL / 2) {
-        // Match over
         const matchWinner = H.seekerScore > H.hiderScore ? 'seekers' : 'hiders';
-        setTimeout(() => {
-            emit({
-                t: 'matchEnd',
-                winner: matchWinner,
-                seekerScore: H.seekerScore,
-                hiderScore: H.hiderScore,
-            });
-        }, 3000);
+        setTimeout(() => emit({ t: 'matchEnd', winner: matchWinner, seekerScore: H.seekerScore, hiderScore: H.hiderScore }), 3000);
     } else {
-        // Next round after delay
-        setTimeout(() => {
-            H.round++;
-            hostStartRound();
-        }, 5000);
+        setTimeout(() => { H.round++; hostStartRound(); }, 5000);
     }
 }
 
 function hostTimerUpdate(dt) {
     if (!gameActive || (H.phase !== 'hiding' && H.phase !== 'seeking')) return;
-
     H.phaseTimer -= dt;
     if (H.phaseTimer <= 0) {
         if (H.phase === 'hiding') {
-            // Hiding time over - transition to seeking
             H.phase = 'seeking';
             H.phaseTimer = SEEK_TIME;
             emit({ t: 'seekPhase' });
-        } else if (H.phase === 'seeking') {
-            // Time ran out - hiders win
+        } else {
             H.hiderScore++;
             hostEndRound('hiders');
         }
         return;
     }
-
-    // Broadcast timer
     emit({ t: 'timer', time: Math.max(0, Math.ceil(H.phaseTimer)), phase: H.phase });
 }
 
@@ -689,42 +670,69 @@ function updateBots(dt) {
         if (!p.bot || !p.alive) continue;
         p.botTimer = (p.botTimer || 0) - dt;
         if (p.botTimer > 0) continue;
-
-        if (p.team === 'hider') {
-            botHiderAI(id, p, dt);
-        } else {
-            botSeekerAI(id, p, dt);
-        }
+        if (p.team === 'hider') botHiderAI(id, p, dt);
+        else botSeekerAI(id, p, dt);
     }
 }
 
 function botHiderAI(id, p, dt) {
-    if (phase === 'hiding' && !p.locked) {
-        // Move toward a good hiding spot near similar real props
-        if (!p.botTarget) {
-            // Find a static prop of same type
-            const same = STATIC_PROP_POSITIONS.filter(sp => sp.type === p.propIdx);
-            if (same.length > 0) {
-                const target = same[Math.floor(Math.random() * same.length)];
-                p.botTarget = { x: target.x + (Math.random() - 0.5) * 1.5, z: target.z + (Math.random() - 0.5) * 1.5 };
-            } else {
-                p.botTarget = { x: (Math.random() - 0.5) * (ROOM_W - 3), z: (Math.random() - 0.5) * (ROOM_H - 3) };
+    if (phase === 'hiding') {
+        if (p.propType < 0) {
+            // Run to nearest prop and transform
+            if (!p.botTarget) {
+                const sp = STATIC_PROP_POSITIONS[Math.floor(Math.random() * STATIC_PROP_POSITIONS.length)];
+                p.botTarget = { x: sp.x + (Math.random() - 0.5) * 2, z: sp.z + (Math.random() - 0.5) * 2, type: sp.type };
             }
-        }
-        const dx = p.botTarget.x - p.x;
-        const dz = p.botTarget.z - p.z;
-        const dist = Math.hypot(dx, dz);
-        if (dist > 0.5) {
-            const step = HIDER_SPEED * dt;
-            p.x += (dx / dist) * step;
-            p.z += (dz / dist) * step;
-            p.yaw = Math.atan2(dx, dz);
-            constrainToRoom(p);
+            const dx = p.botTarget.x - p.x, dz = p.botTarget.z - p.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > INTERACT_RANGE * 0.8) {
+                const step = HIDER_SPEED * dt;
+                p.x += (dx / dist) * step; p.z += (dz / dist) * step;
+                p.yaw = Math.atan2(dx, dz); constrainToRoom(p);
+            } else {
+                p.propType = p.botTarget.type;
+                emit({ t: 'transformed', id, pt: p.propType });
+                rebuildPlayerMesh(id);
+                p.botTarget = null;
+            }
+            p.botTimer = 0.08;
         } else {
-            p.locked = true;
-            act({ t: 'lock', v: true });
+            // Already disguised — maybe place a decoy, then find a hiding spot
+            if ((p.decoysLeft || 0) > 0 && Math.random() < 0.3) {
+                p.decoysLeft--;
+                const decoyId = H.nextDecoyId++;
+                const decoy = { id: decoyId, x: p.x, z: p.z, pt: p.propType, rot: p.yaw };
+                H.decoys.push(decoy);
+                emit({ t: 'decoySpawn', ...decoy });
+                p.botTarget = { x: (Math.random() - 0.5) * (ROOM_W - 4), z: (Math.random() - 0.5) * (ROOM_H - 4) };
+            }
+            if (!p.botTarget) {
+                const same = STATIC_PROP_POSITIONS.filter(sp => sp.type === p.propType);
+                if (same.length > 0) {
+                    const t = same[Math.floor(Math.random() * same.length)];
+                    p.botTarget = { x: t.x + (Math.random() - 0.5) * 2, z: t.z + (Math.random() - 0.5) * 2 };
+                } else {
+                    p.botTarget = { x: (Math.random() - 0.5) * (ROOM_W - 4), z: (Math.random() - 0.5) * (ROOM_H - 4) };
+                }
+            }
+            const dx = p.botTarget.x - p.x, dz = p.botTarget.z - p.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.5) {
+                const step = HIDER_SPEED * 0.5 * dt;
+                p.x += (dx / dist) * step; p.z += (dz / dist) * step; constrainToRoom(p);
+            } else {
+                p.botTarget = null;
+            }
+            p.botTimer = 0.12;
         }
-        p.botTimer = 0.1;
+    } else if (phase === 'seeking') {
+        // Stay mostly still, occasionally shift a little
+        if (Math.random() < 0.02) {
+            p.x += (Math.random() - 0.5) * 0.3;
+            p.z += (Math.random() - 0.5) * 0.3;
+            constrainToRoom(p);
+        }
+        p.botTimer = 0.5;
     } else {
         p.botTimer = 1;
     }
@@ -734,57 +742,37 @@ function botSeekerAI(id, p, dt) {
     if (phase !== 'seeking') { p.botTimer = 0.5; return; }
 
     if (!p.botPatrol) {
-        p.botPatrol = { x: (Math.random() - 0.5) * (ROOM_W - 3), z: (Math.random() - 0.5) * (ROOM_H - 3) };
+        p.botPatrol = { x: (Math.random() - 0.5) * (ROOM_W - 4), z: (Math.random() - 0.5) * (ROOM_H - 4) };
         p.botShootTimer = 2 + Math.random() * 3;
     }
-
-    const dx = p.botPatrol.x - p.x;
-    const dz = p.botPatrol.z - p.z;
+    const dx = p.botPatrol.x - p.x, dz = p.botPatrol.z - p.z;
     const dist = Math.hypot(dx, dz);
-
     if (dist > 1) {
         const step = MOVE_SPEED * dt;
-        p.x += (dx / dist) * step;
-        p.z += (dz / dist) * step;
-        p.yaw = Math.atan2(dx, dz);
-        constrainToRoom(p);
+        p.x += (dx / dist) * step; p.z += (dz / dist) * step;
+        p.yaw = Math.atan2(dx, dz); constrainToRoom(p);
     } else {
-        p.botPatrol = { x: (Math.random() - 0.5) * (ROOM_W - 3), z: (Math.random() - 0.5) * (ROOM_H - 3) };
+        p.botPatrol = { x: (Math.random() - 0.5) * (ROOM_W - 4), z: (Math.random() - 0.5) * (ROOM_H - 4) };
     }
 
-    // Occasionally shoot at nearby props
     p.botShootTimer = (p.botShootTimer || 3) - dt;
     if (p.botShootTimer <= 0) {
         p.botShootTimer = 1.5 + Math.random() * 3;
-        // Find closest alive hider
         let closest = null, closestDist = Infinity;
         for (const [hid, hp] of players) {
             if (hp.team === 'hider' && hp.alive) {
                 const d = Math.hypot(hp.x - p.x, hp.z - p.z);
-                if (d < closestDist && d < 8) { closestDist = d; closest = hid; }
+                if (d < closestDist && d < 10) { closestDist = d; closest = hid; }
             }
         }
-        if (closest && Math.random() < 0.4) {
-            // Shoot at the hider
-            const target = players.get(closest);
-            if (target) {
-                hostHandle(id, { t: 'shoot', hitPlayer: closest });
-            }
-        } else if (Math.random() < 0.15) {
-            // Accidentally shoot a real prop
+        if (closest && Math.random() < 0.35) {
+            hostHandle(id, { t: 'shoot', hitPlayer: closest });
+        } else if (Math.random() < 0.12) {
             const idx = Math.floor(Math.random() * STATIC_PROP_POSITIONS.length);
             hostHandle(id, { t: 'shoot', hitStatic: idx });
         }
     }
-
     p.botTimer = 0.08;
-}
-
-function constrainToRoom(p) {
-    const hw = ROOM_W / 2 - PLAYER_R;
-    const hh = ROOM_H / 2 - PLAYER_R;
-    p.x = clamp(p.x, -hw, hw);
-    p.z = clamp(p.z, -hh, hh);
 }
 
 // ── Client logic ──────────────────────────────────────────────────────────
@@ -792,76 +780,66 @@ function clientHandle(msg) {
     switch (msg.t) {
         case 'reject': backToMenu(msg.reason); break;
         case 'welcome':
-            myId = msg.you;
-            roomCode = msg.code;
+            myId = msg.you; roomCode = msg.code;
             $('room-code').textContent = msg.code;
             view = 'lobby'; show('lobby');
             break;
-        case 'lobby':
-            renderLobby(msg.players);
-            break;
+        case 'lobby': renderLobby(msg.players); break;
         case 'roundStart': {
             view = 'game'; show('hud');
             gameActive = true;
             phase = 'hiding';
             players.clear();
             clearPlayerMeshes();
+            clearDecoys();
 
             currentRound = msg.round;
-            seekerScore = msg.seekerScore;
-            hiderScore = msg.hiderScore;
+            seekerScore = msg.seekerScore; hiderScore = msg.hiderScore;
             $('round-text').textContent = `${msg.round}/${msg.totalRounds}`;
             $('score-text').textContent = `${msg.hiderScore} - ${msg.seekerScore}`;
 
             for (const s of msg.spawns) {
                 const p = {
-                    x: s.x, z: s.z, yaw: 0, pitch: 0,
+                    x: s.x, z: s.z, yaw: 0,
                     targetX: s.x, targetZ: s.z, targetYaw: 0,
-                    team: s.team, propIdx: s.propIdx, alive: true, locked: false,
+                    team: s.team, propType: -1, alive: true,
                     hp: s.hp || SEEKER_HP,
                     name: s.name, color: s.color, bot: s.bot || false,
+                    decoysLeft: s.team === 'hider' ? MAX_DECOYS : 0,
                     botTimer: 0, botTarget: null, botPatrol: null, botShootTimer: 3,
                 };
                 players.set(s.id, p);
-                if (s.id !== myId) {
-                    getOrCreatePlayerMesh(s.id, p);
-                }
+                getOrCreatePlayerMesh(s.id, p);
             }
 
             me = players.get(myId);
             if (!me) break;
             myTeam = me.team;
-            myPropIdx = me.propIdx;
-            myLocked = false;
+            myPropType = -1;
+            myDecoys = MAX_DECOYS;
             myHP = SEEKER_HP;
             shootCooldown = 0;
-            camera.position.set(me.x, PLAYER_HEIGHT, me.z);
+            vx = 0; vz = 0;
 
-            // Set up HUD for role
+            camYaw = Math.PI;
+            camPitch = CAM_PITCH_DEFAULT;
+
             setupHUDForRole();
 
             if (myTeam === 'seeker') {
                 $('blindfold').classList.remove('hidden');
-                removeFlashlight();
             } else {
                 $('blindfold').classList.add('hidden');
-                removeFlashlight();
                 requestPointerLock();
             }
 
             showCenter(myTeam === 'hider' ? 'YOU ARE A HIDER' : 'YOU ARE A SEEKER', 2500);
 
-            // Countdown
             let countdown = 3;
             const cdInt = setInterval(() => {
                 countdown--;
-                if (countdown > 0) {
-                    sfx.count();
-                } else {
-                    clearInterval(cdInt);
-                    sfx.go();
-                    if (myTeam === 'hider') showCenter('HIDE!', 1500);
-                }
+                if (countdown > 0) sfx.count();
+                else { clearInterval(cdInt); sfx.go(); if (myTeam === 'hider') showCenter('FIND A PROP!', 1500); }
             }, 1000);
 
             playMusic('hiding');
@@ -870,30 +848,49 @@ function clientHandle(msg) {
         case 'seekPhase': {
             phase = 'seeking';
             $('blindfold').classList.add('hidden');
-            $('prop-bar').classList.add('hidden');
-            $('lock-btn-wrap').classList.add('hidden');
             $('phase-label').textContent = 'SEEKING PHASE';
+            $('interact-prompt').classList.add('hidden');
+            $('decoy-hud').classList.add('hidden');
 
             if (myTeam === 'seeker') {
-                createFlashlight();
                 $('crosshair').classList.remove('hidden');
                 $('health-hud').classList.remove('hidden');
                 requestPointerLock();
                 showCenter('HUNT THEM DOWN!', 2000);
             } else {
+                $('crosshair').classList.add('hidden');
                 showCenter('STAY HIDDEN!', 2000);
             }
 
+            updateTouchButtons();
             playMusic('seeking');
             sfx.go();
             break;
         }
-        case 'propUpdate': {
+        case 'transformed': {
             const p = players.get(msg.id);
             if (p) {
-                p.propIdx = msg.idx;
-                if (msg.id !== myId) updatePlayerMeshProp(msg.id, p);
+                p.propType = msg.pt;
+                rebuildPlayerMesh(msg.id);
+                const mesh = playerMeshes.get(msg.id);
+                if (mesh) spawnTransformParticles(mesh.position.x, PROP_DEFS[msg.pt].oy, mesh.position.z);
             }
+            if (msg.id === myId) {
+                myPropType = msg.pt;
+                showCenter(`You became a ${PROP_DEFS[msg.pt].name}!`, 1500);
+                sfx.propSelect();
+            }
+            break;
+        }
+        case 'decoySpawn': {
+            addDecoyMesh(msg.id, msg.x, msg.z, msg.pt, msg.rot);
+            break;
+        }
+        case 'decoyDestroyed': {
+            const mesh = decoyMeshes.get(msg.id);
+            if (mesh) spawnParticles(mesh.position.clone(), 0xaaaaaa, 12);
+            removeDecoyMesh(msg.id);
+            sfx.hitProp();
             break;
         }
         case 'eliminated': {
@@ -901,9 +898,7 @@ function clientHandle(msg) {
             if (target) {
                 target.alive = false;
                 const mesh = playerMeshes.get(msg.target);
-                if (mesh) {
-                    spawnHitParticles(mesh.position.clone(), 0xff4444, 20);
-                }
+                if (mesh) spawnParticles(mesh.position.clone(), 0xff4444, 20);
                 removePlayerMesh(msg.target);
             }
             if (msg.target === myId) {
@@ -911,8 +906,7 @@ function clientHandle(msg) {
                 sfx.found();
                 document.exitPointerLock && document.exitPointerLock();
             } else {
-                const name = target ? target.name : 'Someone';
-                toast(`${name} was found!`);
+                toast(`${target ? target.name : 'Someone'} was found!`);
                 sfx.hitPlayer();
             }
             updateHidersCount();
@@ -925,7 +919,7 @@ function clientHandle(msg) {
                 myHP = msg.hp;
                 updateHealthBar();
                 sfx.hitProp();
-                showCenter('-10 HP', 800);
+                showCenter('-' + PROP_HIT_DMG + ' HP', 800);
             }
             break;
         }
@@ -936,50 +930,32 @@ function clientHandle(msg) {
                 showCenter('YOU RAN OUT OF HEALTH!', 3000);
                 document.exitPointerLock && document.exitPointerLock();
             } else {
-                const name = p ? p.name : 'A seeker';
-                toast(`${name} ran out of health!`);
+                toast(`${p ? p.name : 'A seeker'} ran out of health!`);
             }
             break;
         }
         case 'timer': {
             phaseTimer = msg.time;
-            const m = Math.floor(msg.time / 60);
-            const s = msg.time % 60;
+            const m = Math.floor(msg.time / 60), s = msg.time % 60;
             $('timer-value').textContent = `${m}:${s.toString().padStart(2, '0')}`;
             $('timer-value').classList.toggle('urgent', msg.time <= 10);
-            if (msg.phase === 'hiding' && myTeam === 'seeker') {
-                $('blindfold-timer').textContent = msg.time;
-            }
+            if (msg.phase === 'hiding' && myTeam === 'seeker') $('blindfold-timer').textContent = msg.time;
             if (msg.time <= 5 && msg.time > 0) sfx.count();
             break;
         }
         case 'roundEnd': {
-            gameActive = false;
-            phase = 'roundEnd';
-            removeFlashlight();
+            gameActive = false; phase = 'roundEnd';
             document.exitPointerLock && document.exitPointerLock();
-
-            seekerScore = msg.seekerScore;
-            hiderScore = msg.hiderScore;
-
-            const winText = msg.winner === 'hiders' ? 'Hiders survive!' : 'Seekers found them all!';
-            showCenter(winText, 3000);
-            sfx.win();
-            playMusic('results');
+            seekerScore = msg.seekerScore; hiderScore = msg.hiderScore;
+            showCenter(msg.winner === 'hiders' ? 'Hiders survive!' : 'Seekers found them all!', 3000);
+            sfx.win(); playMusic('results');
             break;
         }
         case 'matchEnd': {
-            phase = 'matchEnd';
-            view = 'results'; show('results');
-            removeFlashlight();
-
-            const isHiderWin = msg.winner === 'hiders';
+            phase = 'matchEnd'; view = 'results'; show('results');
             $('results-kicker').textContent = 'MATCH OVER';
-            $('results-title').textContent = isHiderWin ? 'Hiders Win the Match!' : 'Seekers Win the Match!';
-
-            // Build results list
-            const list = $('results-list');
-            list.innerHTML = '';
+            $('results-title').textContent = msg.winner === 'hiders' ? 'Hiders Win!' : 'Seekers Win!';
+            const list = $('results-list'); list.innerHTML = '';
             for (const [id, p] of players) {
                 const li = document.createElement('li');
                 li.className = 'player' + (id === myId ? ' me' : '');
@@ -988,73 +964,44 @@ function clientHandle(msg) {
                     <span class="badge">${esc(p.team)}</span>`;
                 list.appendChild(li);
             }
-
             $('score-text').textContent = `${msg.hiderScore} - ${msg.seekerScore}`;
-            sfx.win();
-            track('match_end', { winner: msg.winner });
+            sfx.win(); track('match_end', { winner: msg.winner });
             break;
         }
     }
 }
 
+// ── HUD ───────────────────────────────────────────────────────────────────
 function setupHUDForRole() {
     const badge = $('role-badge');
     badge.textContent = myTeam === 'hider' ? 'HIDER' : 'SEEKER';
     badge.classList.toggle('seeker', myTeam === 'seeker');
-
     $('phase-label').textContent = 'HIDING PHASE';
-    $('crosshair').classList.toggle('hidden', myTeam !== 'seeker' || phase !== 'seeking');
-    $('health-hud').classList.toggle('hidden', myTeam !== 'seeker');
+
+    $('crosshair').classList.add('hidden');
     $('hitmarker').classList.remove('show');
+    $('health-hud').classList.toggle('hidden', myTeam !== 'seeker');
 
     if (myTeam === 'hider') {
-        // Show prop selection
-        $('prop-bar').classList.remove('hidden');
-        $('lock-btn-wrap').classList.remove('hidden');
-        buildPropButtons();
+        $('decoy-hud').classList.remove('hidden');
+        updateDecoyHUD();
     } else {
-        $('prop-bar').classList.add('hidden');
-        $('lock-btn-wrap').classList.add('hidden');
+        $('decoy-hud').classList.add('hidden');
+        $('interact-prompt').classList.add('hidden');
     }
 
     updateHidersCount();
     updateHealthBar();
-
-    // Touch action button
-    if (myTeam === 'seeker') {
-        $('touch-action').textContent = 'SHOOT';
-    } else {
-        $('touch-action').textContent = 'LOCK';
-    }
+    updateTouchButtons();
 }
 
-function buildPropButtons() {
-    const container = $('prop-buttons');
-    container.innerHTML = '';
-    PROP_DEFS.forEach((def, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'prop-btn' + (i === myPropIdx ? ' active' : '');
-        btn.innerHTML = `<span class="prop-icon">${def.icon}</span><span class="prop-key">${i + 1}</span>`;
-        btn.addEventListener('click', () => selectProp(i));
-        container.appendChild(btn);
-    });
-}
-
-function selectProp(idx) {
-    if (phase !== 'hiding' || myTeam !== 'hider') return;
-    myPropIdx = idx;
-    if (me) me.propIdx = idx;
-    act({ t: 'propChoice', idx });
-    sfx.propSelect();
-    // Update button states
-    const btns = $('prop-buttons').children;
-    for (let i = 0; i < btns.length; i++) btns[i].classList.toggle('active', i === idx);
+function updateDecoyHUD() {
+    $('decoy-count').textContent = myDecoys;
 }
 
 function updateHidersCount() {
-    const alive = [...players.values()].filter(p => p.team === 'hider' && p.alive).length;
-    hidersAlive = alive;
-    $('hiders-count').textContent = alive;
+    hidersAlive = [...players.values()].filter(p => p.team === 'hider' && p.alive).length;
+    $('hiders-count').textContent = hidersAlive;
 }
 
 function updateHealthBar() {
@@ -1064,9 +1011,34 @@ function updateHealthBar() {
     $('health-text').textContent = myHP;
 }
 
+function updateInteractPrompt() {
+    const prompt = $('interact-prompt');
+    if (nearestProp && myTeam === 'hider' && me && me.alive && (phase === 'hiding' || phase === 'seeking')) {
+        const name = PROP_DEFS[nearestProp.type].name;
+        prompt.innerHTML = `Press <b>E</b> to become <b>${esc(name)}</b>`;
+        prompt.classList.remove('hidden');
+    } else {
+        prompt.classList.add('hidden');
+    }
+}
+
+function updateTouchButtons() {
+    const ta = $('touch-action');
+    const ta2 = $('touch-action2');
+    if (myTeam === 'seeker') {
+        ta.textContent = 'SHOOT';
+        ta.classList.toggle('hidden', phase !== 'seeking');
+        ta2.classList.add('hidden');
+    } else {
+        ta.textContent = 'BECOME';
+        ta.classList.toggle('hidden', !nearestProp);
+        ta2.textContent = `DECOY (${myDecoys})`;
+        ta2.classList.toggle('hidden', myPropType < 0 || myDecoys <= 0);
+    }
+}
+
 function renderLobby(list) {
-    const ul = $('players');
-    ul.innerHTML = '';
+    const ul = $('players'); ul.innerHTML = '';
     list.forEach(p => {
         const li = document.createElement('li');
         const isMe = p.id === myId;
@@ -1082,15 +1054,105 @@ function renderLobby(list) {
         ul.appendChild(li);
     });
     $('count').textContent = `${list.length}/${MAX_PLAYERS}`;
+    for (const btn of ul.querySelectorAll('.kick')) btn.addEventListener('click', () => kickPlayer(btn.dataset.id));
+}
 
-    // Kick handlers
-    for (const btn of ul.querySelectorAll('.kick')) {
-        btn.addEventListener('click', () => kickPlayer(btn.dataset.id));
+function clearPlayerMeshes() { for (const [id] of playerMeshes) removePlayerMesh(id); }
+
+// ── Prop interaction ──────────────────────────────────────────────────────
+function checkNearestProp() {
+    if (!gameActive || !me || !me.alive || myTeam !== 'hider') { nearestProp = null; return; }
+
+    let closest = null;
+    let closestDist = INTERACT_RANGE;
+    for (let i = 0; i < STATIC_PROP_POSITIONS.length; i++) {
+        const sp = STATIC_PROP_POSITIONS[i];
+        const d = Math.hypot(sp.x - me.x, sp.z - me.z);
+        if (d < closestDist) { closestDist = d; closest = { idx: i, type: sp.type, distance: d }; }
+    }
+    nearestProp = closest;
+    updateInteractPrompt();
+    updateTouchButtons();
+}
+
+function doTransform() {
+    if (!nearestProp || myTeam !== 'hider' || !me || !me.alive) return;
+    const newType = nearestProp.type;
+    myPropType = newType;
+    me.propType = newType;
+    act({ t: 'transform', pt: newType });
+    rebuildPlayerMesh(myId);
+    spawnTransformParticles(me.x, PROP_DEFS[newType].oy, me.z);
+    sfx.propSelect();
+    showCenter(`You became a ${PROP_DEFS[newType].name}!`, 1500);
+    updateDecoyHUD();
+    updateTouchButtons();
+}
+
+function doDecoy() {
+    if (myTeam !== 'hider' || myPropType < 0 || myDecoys <= 0 || !me || !me.alive) return;
+    myDecoys--;
+    act({ t: 'decoy', x: me.x, z: me.z });
+    sfx.propSelect();
+    updateDecoyHUD();
+    updateTouchButtons();
+    toast('Decoy placed!');
+}
+
+// ── Shooting ──────────────────────────────────────────────────────────────
+function tryShoot() {
+    if (shootCooldown > 0 || !me || !me.alive || myTeam !== 'seeker' || phase !== 'seeking') return;
+    shootCooldown = SHOOT_COOLDOWN;
+    sfx.shoot();
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    raycaster.far = 40;
+
+    const targets = [];
+    const addTargets = (mesh, type, id) => {
+        if (mesh.isGroup) mesh.traverse(c => { if (c.isMesh) targets.push({ mesh: c, type, id }); });
+        else targets.push({ mesh, type, id });
+    };
+
+    // Player meshes (hiders only, skip self)
+    for (const [id, mesh] of playerMeshes) {
+        if (id === myId) continue;
+        const p = players.get(id);
+        if (p && p.team === 'hider' && p.alive) addTargets(mesh, 'player', id);
+    }
+    // Static props
+    for (const m of staticPropMeshes) addTargets(m, 'static', m.userData.staticPropIdx);
+    // Decoys
+    for (const [id, m] of decoyMeshes) addTargets(m, 'decoy', id);
+
+    const meshes = targets.map(t => t.mesh);
+    const hits = raycaster.intersectObjects(meshes, false);
+
+    if (hits.length > 0) {
+        const target = targets.find(t => t.mesh === hits[0].object);
+        if (target) {
+            if (target.type === 'player') {
+                act({ t: 'shoot', hitPlayer: target.id });
+            } else if (target.type === 'static') {
+                act({ t: 'shoot', hitStatic: target.id });
+                flashMesh(hits[0].object);
+            } else if (target.type === 'decoy') {
+                act({ t: 'shoot', hitDecoy: target.id });
+            }
+            showHitMarker();
+            spawnParticles(hits[0].point, target.type === 'player' ? 0xff4444 : 0x888888, 12);
+        }
     }
 }
 
-function clearPlayerMeshes() {
-    for (const [id] of playerMeshes) removePlayerMesh(id);
+function flashMesh(mesh) {
+    if (!mesh.material) return;
+    mesh.material.emissive = new THREE.Color(0xff0000);
+    mesh.material.emissiveIntensity = 0.5;
+    setTimeout(() => {
+        if (mesh.material) { mesh.material.emissive = new THREE.Color(0); mesh.material.emissiveIntensity = 0; }
+    }, 300);
 }
 
 // ── Pointer Lock ──────────────────────────────────────────────────────────
@@ -1098,52 +1160,34 @@ function requestPointerLock() {
     if (document.body.classList.contains('touch')) return;
     $('lock-prompt').classList.remove('hidden');
 }
-
 document.addEventListener('pointerlockchange', () => {
-    const locked = document.pointerLockElement === $('c') || document.pointerLockElement === document.body;
+    const locked = !!document.pointerLockElement;
     const playing = gameActive && view === 'game' && me && me.alive;
     $('lock-prompt').classList.toggle('hidden', locked || !playing || document.body.classList.contains('touch'));
 });
-$('lock-prompt').addEventListener('click', () => {
-    $('c').requestPointerLock();
-});
+$('lock-prompt').addEventListener('click', () => { $('c').requestPointerLock(); });
 
 // ── Input ─────────────────────────────────────────────────────────────────
 addEventListener('keydown', e => {
     keys[e.code] = true;
-    // Prop selection with number keys
-    if (phase === 'hiding' && myTeam === 'hider') {
-        const n = parseInt(e.key);
-        if (n >= 1 && n <= PROP_DEFS.length) {
-            selectProp(n - 1);
-        }
+    if (e.code === 'KeyE' && gameActive && me && me.alive && myTeam === 'hider') {
+        doTransform();
+    }
+    if (e.code === 'KeyQ' && gameActive && me && me.alive && myTeam === 'hider') {
+        doDecoy();
     }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 
-// Mouse look
 addEventListener('mousemove', e => {
     if (!document.pointerLockElement) return;
     mouseDx += e.movementX;
     mouseDy += e.movementY;
 });
 
-// Shoot / Lock on click
 addEventListener('mousedown', e => {
     if (e.button !== 0 || !document.pointerLockElement || !gameActive || !me || !me.alive) return;
-    if (myTeam === 'seeker' && phase === 'seeking') {
-        tryShoot();
-    } else if (myTeam === 'hider') {
-        toggleLock();
-    }
-});
-
-// Scroll to change prop
-addEventListener('wheel', e => {
-    if (phase !== 'hiding' || myTeam !== 'hider') return;
-    const dir = e.deltaY > 0 ? 1 : -1;
-    let next = (myPropIdx + dir + PROP_DEFS.length) % PROP_DEFS.length;
-    selectProp(next);
+    if (myTeam === 'seeker' && phase === 'seeking') tryShoot();
 });
 
 // ── Touch controls ────────────────────────────────────────────────────────
@@ -1183,7 +1227,7 @@ cvs.addEventListener('pointermove', e => {
 });
 const endTouch = e => {
     if (e.pointerId === joyL.id) { joyL.id = null; joyL.x = joyL.y = 0; $('joy-left-knob').style.transform = ''; }
-    if (e.pointerId === touchLookId) { touchLookId = null; }
+    if (e.pointerId === touchLookId) touchLookId = null;
 };
 cvs.addEventListener('pointerup', endTouch);
 cvs.addEventListener('pointercancel', endTouch);
@@ -1192,173 +1236,110 @@ $('touch-action').addEventListener('pointerdown', e => {
     e.preventDefault();
     if (!gameActive || !me || !me.alive) return;
     if (myTeam === 'seeker' && phase === 'seeking') tryShoot();
-    else if (myTeam === 'hider') toggleLock();
+    else if (myTeam === 'hider') doTransform();
+});
+$('touch-action2').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (!gameActive || !me || !me.alive) return;
+    doDecoy();
 });
 
-// ── Shooting mechanic ─────────────────────────────────────────────────────
-function tryShoot() {
-    if (shootCooldown > 0 || !me || !me.alive || myTeam !== 'seeker') return;
-    shootCooldown = SHOOT_COOLDOWN;
-    sfx.shoot();
-
-    // Raycast from camera center
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    raycaster.far = 30;
-
-    // Collect all shootable meshes
-    const targets = [];
-
-    // Player prop meshes (hiders)
-    for (const [id, mesh] of playerMeshes) {
-        const p = players.get(id);
-        if (p && p.team === 'hider' && p.alive) {
-            if (mesh.isGroup) {
-                mesh.traverse(child => { if (child.isMesh) targets.push({ mesh: child, type: 'player', id }); });
-            } else {
-                targets.push({ mesh, type: 'player', id });
-            }
-        }
-    }
-
-    // Static prop meshes
-    for (const m of staticPropMeshes) {
-        if (m.isGroup) {
-            m.traverse(child => { if (child.isMesh) targets.push({ mesh: child, type: 'static', idx: m.userData.staticPropIdx }); });
-        } else {
-            targets.push({ mesh: m, type: 'static', idx: m.userData.staticPropIdx });
-        }
-    }
-
-    const meshes = targets.map(t => t.mesh);
-    const hits = raycaster.intersectObjects(meshes, false);
-
-    if (hits.length > 0) {
-        const hit = hits[0];
-        const hitMesh = hit.object;
-        const target = targets.find(t => t.mesh === hitMesh);
-        if (target) {
-            if (target.type === 'player') {
-                act({ t: 'shoot', hitPlayer: target.id });
-                showHitMarker();
-                spawnHitParticles(hit.point, 0xff4444, 15);
-            } else {
-                act({ t: 'shoot', hitStatic: target.idx });
-                showHitMarker();
-                spawnHitParticles(hit.point, 0x888888, 8);
-                // Flash the static prop
-                flashMesh(hitMesh);
-            }
-        }
-    }
-}
-
-function flashMesh(mesh) {
-    if (!mesh.material) return;
-    const origColor = mesh.material.color.clone();
-    mesh.material.emissive = new THREE.Color(0xff0000);
-    mesh.material.emissiveIntensity = 0.5;
-    setTimeout(() => {
-        if (mesh.material) {
-            mesh.material.emissive = new THREE.Color(0x000000);
-            mesh.material.emissiveIntensity = 0;
-        }
-    }, 300);
-}
-
-function toggleLock() {
-    if (!me || myTeam !== 'hider') return;
-    myLocked = !myLocked;
-    me.locked = myLocked;
-    act({ t: 'lock', v: myLocked });
-    const btn = $('btn-lock');
-    btn.textContent = myLocked ? 'UNLOCK' : 'LOCK IN PLACE';
-    btn.classList.toggle('locked', myLocked);
-}
-
 // ── Game loop ─────────────────────────────────────────────────────────────
-let camYaw = 0, camPitch = 0;
-
 function gameLoop() {
     requestAnimationFrame(gameLoop);
     const dt = Math.min(clock.getDelta(), 0.1);
 
     if (gameActive && me && me.alive) {
-        // Camera look
-        const sensitivity = 0.002;
-        camYaw -= mouseDx * sensitivity;
-        camPitch -= mouseDy * sensitivity;
-        camPitch = clamp(camPitch, -Math.PI / 2.5, Math.PI / 2.5);
-        mouseDx = 0;
-        mouseDy = 0;
+        // Camera orbit
+        const sens = 0.003;
+        camYaw -= mouseDx * sens;
+        camPitch = clamp(camPitch - mouseDy * sens * 0.3, 0.15, 1.0);
+        mouseDx = 0; mouseDy = 0;
 
         // Movement
-        const canMove = (myTeam === 'hider' && !myLocked) || myTeam === 'seeker';
+        const canMove = myTeam === 'hider' || (myTeam === 'seeker' && phase === 'seeking');
         if (canMove) {
             let ix = 0, iz = 0;
             if (keys.KeyW || keys.ArrowUp || joyL.y < -0.1) iz -= 1;
             if (keys.KeyS || keys.ArrowDown || joyL.y > 0.1) iz += 1;
             if (keys.KeyA || keys.ArrowLeft || joyL.x < -0.1) ix -= 1;
             if (keys.KeyD || keys.ArrowRight || joyL.x > 0.1) ix += 1;
-
-            // Touch joystick overrides
             if (joyL.id !== null) { ix = joyL.x; iz = joyL.y; }
 
             if (ix || iz) {
                 const len = Math.hypot(ix, iz);
                 ix /= len; iz /= len;
 
-                // Rotate input by camera yaw
                 const sinY = Math.sin(camYaw), cosY = Math.cos(camYaw);
                 const mx = ix * cosY + iz * sinY;
                 const mz = -ix * sinY + iz * cosY;
 
                 const speed = myTeam === 'hider' ? HIDER_SPEED : MOVE_SPEED;
-                const targetVx = mx * speed;
-                const targetVz = mz * speed;
+                vx = lerp(vx, mx * speed, 1 - Math.exp(-ACCEL * dt));
+                vz = lerp(vz, mz * speed, 1 - Math.exp(-ACCEL * dt));
 
-                vx = lerp(vx, targetVx, 1 - Math.exp(-ACCEL * dt));
-                vz = lerp(vz, targetVz, 1 - Math.exp(-ACCEL * dt));
+                const targetYaw = Math.atan2(mx, mz);
+                me.yaw = lerpAngle(me.yaw, targetYaw, 1 - Math.exp(-12 * dt));
             } else {
                 vx = lerp(vx, 0, 1 - Math.exp(-FRICTION * dt));
                 vz = lerp(vz, 0, 1 - Math.exp(-FRICTION * dt));
             }
 
-            me.x += vx * dt;
-            me.z += vz * dt;
+            me.x += vx * dt; me.z += vz * dt;
             constrainToRoom(me);
 
             // Footstep sounds
             const speed = Math.hypot(vx, vz);
             if (speed > 0.5) {
                 lastStepT += dt;
-                if (lastStepT > 0.4) {
-                    sfx.footstep();
-                    lastStepT = 0;
-                }
-            } else {
-                lastStepT = 0.3;
-            }
+                if (lastStepT > 0.4) { sfx.footstep(); lastStepT = 0; }
+            } else { lastStepT = 0.3; }
         }
 
-        // Update camera
-        camera.position.set(me.x, myTeam === 'hider' ? PROP_DEFS[myPropIdx].oy + 0.3 : PLAYER_HEIGHT, me.z);
-        camera.rotation.order = 'YXZ';
-        camera.rotation.y = camYaw;
-        camera.rotation.x = camPitch;
-
-        me.yaw = camYaw;
-
-        // Send position
+        // Send state
         sendTimer -= dt;
         if (sendTimer <= 0) {
             sendTimer = SEND_EVERY;
-            act({ t: 'st', x: me.x, z: me.z, yaw: me.yaw, pi: myPropIdx, lk: myLocked });
+            act({ t: 'st', x: me.x, z: me.z, yaw: me.yaw });
         }
 
-        // Shoot cooldown
         if (shootCooldown > 0) shootCooldown -= dt;
+
+        // Check nearest prop for interaction prompt
+        if (myTeam === 'hider') checkNearestProp();
+
+        // Third-person camera
+        const playerCenter = me.propType >= 0 ? PROP_DEFS[me.propType].oy + 0.3 : 0.85;
+        const camOffsetX = Math.sin(camYaw) * CAM_DIST * Math.cos(camPitch);
+        const camOffsetZ = Math.cos(camYaw) * CAM_DIST * Math.cos(camPitch);
+        const camOffsetY = CAM_HEIGHT * Math.sin(camPitch) + 2;
+
+        const idealPos = new THREE.Vector3(
+            me.x + camOffsetX,
+            camOffsetY,
+            me.z + camOffsetZ
+        );
+        // Clamp camera inside room
+        const margin = 0.5;
+        idealPos.x = clamp(idealPos.x, -ROOM_W/2 + margin, ROOM_W/2 - margin);
+        idealPos.z = clamp(idealPos.z, -ROOM_H/2 + margin, ROOM_H/2 - margin);
+        idealPos.y = clamp(idealPos.y, 1, WALL_H - 0.3);
+
+        const idealTarget = new THREE.Vector3(me.x, playerCenter, me.z);
+
+        camPos.lerp(idealPos, Math.min(1, dt * 8));
+        camTarget.lerp(idealTarget, Math.min(1, dt * 10));
+    } else if (!gameActive && me) {
+        // Orbit overview
+        const t = performance.now() * 0.0002;
+        const overviewPos = new THREE.Vector3(Math.sin(t) * 18, 12, Math.cos(t) * 18);
+        const overviewLook = new THREE.Vector3(0, 0, 0);
+        camPos.lerp(overviewPos, Math.min(1, dt * 2));
+        camTarget.lerp(overviewLook, Math.min(1, dt * 2));
     }
+
+    camera.position.copy(camPos);
+    camera.lookAt(camTarget);
 
     // Host updates
     if (role === 'host' && gameActive) {
@@ -1368,30 +1349,30 @@ function gameLoop() {
 
     // Lerp other player meshes
     for (const [id, p] of players) {
-        if (id === myId) continue;
-        if (!p.alive) continue;
+        if (!p.alive) {
+            const mesh = playerMeshes.get(id);
+            if (mesh) mesh.visible = false;
+            continue;
+        }
 
-        // Smooth position interpolation
-        p.x = lerp(p.x, p.targetX || p.x, 1 - Math.exp(-12 * dt));
-        p.z = lerp(p.z, p.targetZ || p.z, 1 - Math.exp(-12 * dt));
-        p.yaw = lerpAngle(p.yaw, p.targetYaw || p.yaw, 1 - Math.exp(-10 * dt));
+        if (id !== myId) {
+            p.x = lerp(p.x, p.targetX || p.x, 1 - Math.exp(-12 * dt));
+            p.z = lerp(p.z, p.targetZ || p.z, 1 - Math.exp(-12 * dt));
+            p.yaw = lerpAngle(p.yaw, p.targetYaw || p.yaw, 1 - Math.exp(-10 * dt));
+        }
 
         const mesh = playerMeshes.get(id);
         if (mesh) {
-            const def = p.team === 'hider' ? PROP_DEFS[p.propIdx || 0] : null;
-            const oy = def ? def.oy : 0.65;
+            const oy = p.propType >= 0 ? PROP_DEFS[p.propType].oy : 0;
             mesh.position.set(p.x, oy, p.z);
             mesh.rotation.y = p.yaw;
+            mesh.visible = true;
         }
     }
 
-    // Update particles
     updateParticles(dt);
 
-    // Render
-    if (scene && camera && renderer) {
-        renderer.render(scene, camera);
-    }
+    if (scene && camera && renderer) renderer.render(scene, camera);
 }
 
 // ── Room creation / joining ───────────────────────────────────────────────
@@ -1408,17 +1389,13 @@ async function createRoom(solo = false) {
     if (!solo) {
         net = new HostNet({ onMessage: hostHandle, onLeave: hostLeave });
         setStatus('menu-status', 'Creating room...');
-        try {
-            await net.open(roomCode);
-        } catch (e) {
+        try { await net.open(roomCode); } catch (e) {
             if (e.message === 'code-taken') {
                 roomCode = makeCode();
                 try { await net.open(roomCode); } catch (e2) {
                     setStatus('menu-status', e2.message, true); role = null; return;
                 }
-            } else {
-                setStatus('menu-status', e.message, true); role = null; return;
-            }
+            } else { setStatus('menu-status', e.message, true); role = null; return; }
         }
         track('room_create');
     } else {
@@ -1427,14 +1404,9 @@ async function createRoom(solo = false) {
     }
 
     myId = solo ? 'host' : net.peer.id;
-    H.players = [];
-    H.phase = 'lobby';
-
+    H.players = []; H.phase = 'lobby';
     hostHandle(myId, { t: 'hello', name });
-
-    if (solo) {
-        for (let i = 0; i < 3; i++) addBot();
-    }
+    if (solo) for (let i = 0; i < 3; i++) addBot();
 
     $('room-code').textContent = roomCode;
     view = 'lobby'; show('lobby');
@@ -1450,29 +1422,17 @@ async function joinRoom() {
     myName = name;
     try { localStorage.setItem('prophuntName', name); } catch {}
 
-    role = 'client';
-    document.body.classList.remove('is-host');
-
+    role = 'client'; document.body.classList.remove('is-host');
     net = new ClientNet({
         onMessage: clientHandle,
         onClose: () => backToMenu('Lost connection to the host.'),
         onStatus: s => setStatus('menu-status', s),
     });
-
     setStatus('menu-status', 'Joining...');
-    try {
-        myId = await net.connect(code);
-    } catch (e) {
-        setStatus('menu-status', e.message, true); role = null; return;
-    }
-
+    try { myId = await net.connect(code); } catch (e) { setStatus('menu-status', e.message, true); role = null; return; }
     net.send({ t: 'hello', name });
     track('room_join');
-
-    // Timeout if no welcome
-    setTimeout(() => {
-        if (view === 'menu' && role === 'client') backToMenu('Room not found or game already started.');
-    }, 8000);
+    setTimeout(() => { if (view === 'menu' && role === 'client') backToMenu('Room not found or game already started.'); }, 8000);
 }
 
 function backToMenu(reason) {
@@ -1481,20 +1441,19 @@ function backToMenu(reason) {
     gameActive = false; phase = 'lobby';
     players.clear();
     clearPlayerMeshes();
-    removeFlashlight();
+    clearDecoys();
     document.body.classList.remove('is-host');
-    H.players = []; H.phase = 'lobby';
+    H.players = []; H.phase = 'lobby'; H.decoys = [];
     document.exitPointerLock && document.exitPointerLock();
     view = 'menu'; show('menu');
     setStatus('menu-status', reason || '', !!reason);
     playMusic('menu');
 }
 
-// ── Mute controls ─────────────────────────────────────────────────────────
+// ── Mute ──────────────────────────────────────────────────────────────────
 function muteHandler() {
     unlockAudio();
-    const m = !isMuted();
-    setMuted(m);
+    const m = !isMuted(); setMuted(m);
     $('icon-sound').classList.toggle('hidden', m);
     $('icon-muted').classList.toggle('hidden', !m);
     $('icon-sound-hud').classList.toggle('hidden', m);
@@ -1504,7 +1463,7 @@ function muteHandler() {
 $('btn-mute').addEventListener('click', muteHandler);
 $('btn-mute-hud').addEventListener('click', muteHandler);
 
-// ── Button events ─────────────────────────────────────────────────────────
+// ── Events ────────────────────────────────────────────────────────────────
 $('btn-create').addEventListener('click', () => { sfx.click(); createRoom(false); });
 $('btn-solo').addEventListener('click', () => { sfx.click(); createRoom(true); });
 $('btn-join').addEventListener('click', () => { sfx.click(); joinRoom(); });
@@ -1527,15 +1486,12 @@ $('btn-results-exit').addEventListener('click', () => { sfx.click(); backToMenu(
 $('btn-again').addEventListener('click', () => {
     sfx.click();
     if (role === 'host') {
-        H.phase = 'lobby';
-        emitLobby();
-        view = 'lobby'; show('lobby');
-        playMusic('menu');
+        H.phase = 'lobby'; emitLobby();
+        view = 'lobby'; show('lobby'); playMusic('menu');
     }
 });
-$('btn-lock').addEventListener('click', () => { sfx.click(); toggleLock(); });
 
-// ── Invite link handling ──────────────────────────────────────────────────
+// Invite link
 const params = new URLSearchParams(location.search);
 if (params.has('room')) {
     const code = params.get('room').toUpperCase();
@@ -1545,27 +1501,21 @@ if (params.has('room')) {
     history.replaceState(null, '', location.pathname);
 }
 
-// ── Touch detection ───────────────────────────────────────────────────────
+// Touch detection
 if (window.matchMedia && matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
 
-// ── Menu scene ────────────────────────────────────────────────────────────
+// Menu scene
 function menuScene() {
-    // Reset camera for menu
-    camera.position.set(0, 3, 8);
-    camera.lookAt(0, 1, 0);
-    camYaw = 0;
-    camPitch = 0;
+    camYaw = 0; camPitch = 0.6;
+    camPos.set(0, 12, 16);
+    camTarget.set(0, 0, 0);
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────
 $('name').value = myName;
-if (isMuted()) {
-    $('icon-sound').classList.add('hidden');
-    $('icon-muted').classList.remove('hidden');
-}
+if (isMuted()) { $('icon-sound').classList.add('hidden'); $('icon-muted').classList.remove('hidden'); }
 initThree();
 menuScene();
-scene.add(camera); // needed so flashlight works as child
 show('menu');
 playMusic('menu');
 gameLoop();

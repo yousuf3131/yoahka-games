@@ -96,7 +96,6 @@ body:not(.is-host) .host-only { display: none !important; }
 /* ── HUD ── */
 #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
 
-/* Role badge */
 .role-badge {
     position: absolute; top: 1.2rem; left: 1.2rem;
     font-family: 'Bungee', sans-serif; font-size: 0.9rem; letter-spacing: 0.1em;
@@ -106,7 +105,6 @@ body:not(.is-host) .host-only { display: none !important; }
 }
 .role-badge.seeker { background: rgba(224, 88, 79, 0.25); border-color: rgba(224, 88, 79, 0.5); color: var(--bad); }
 
-/* Timer */
 #timer-hud {
     position: absolute; top: 1.2rem; left: 50%; transform: translateX(-50%);
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -117,7 +115,6 @@ body:not(.is-host) .host-only { display: none !important; }
 }
 #timer-value.urgent { color: var(--bad); text-shadow: 0 0 20px rgba(224, 88, 79, 0.6); }
 
-/* Health */
 #health-hud {
     position: absolute; top: 1.2rem; right: 1.2rem;
     display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
@@ -127,54 +124,43 @@ body:not(.is-host) .host-only { display: none !important; }
 #health-bar.low { background: var(--bad); }
 #health-text { font-size: 0.8rem; font-weight: 800; color: var(--text); }
 
-/* Hiders remaining */
 #hiders-hud {
     position: absolute; bottom: 1.2rem; left: 1.2rem;
     display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
 }
 #hiders-count { font-family: 'Bungee', sans-serif; font-size: 1.4rem; color: var(--accent-glow); }
 
-/* Score */
 #score-hud {
     position: absolute; bottom: 1.2rem; right: 1.2rem;
     display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
 }
 #round-text, #score-text { font-weight: 800; font-size: 0.9rem; }
 
-/* Prop selection bar */
-#prop-bar {
-    position: absolute; bottom: 5rem; left: 50%; transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    pointer-events: all;
+/* Decoy counter */
+#decoy-hud {
+    position: absolute; bottom: 5.5rem; left: 1.2rem;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
 }
-#prop-buttons { display: flex; gap: 6px; }
-.prop-btn {
-    width: 56px; height: 56px; border-radius: 12px;
-    background: var(--panel-2); border: 2px solid var(--line);
-    color: var(--text); font-size: 0.7rem; font-weight: 700;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    cursor: pointer; transition: border-color 0.15s, background 0.15s;
-    font-family: inherit;
-}
-.prop-btn:hover { border-color: var(--accent); }
-.prop-btn.active { border-color: var(--accent-glow); background: rgba(139, 92, 246, 0.2); }
-.prop-btn .prop-icon { font-size: 1.3rem; }
-.prop-btn .prop-key { font-size: 0.6rem; color: var(--muted); }
+#decoy-count { font-family: 'Bungee', sans-serif; font-size: 1.3rem; color: var(--accent-glow); }
+.hud-hint { color: var(--muted); font-size: 0.6rem; letter-spacing: 0.06em; }
 
-/* Lock button */
-#lock-btn-wrap {
-    position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
-    pointer-events: all;
+/* Interaction prompt */
+#interact-prompt {
+    position: absolute; bottom: 6rem; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(139, 92, 246, 0.4);
+    padding: 10px 20px; border-radius: 12px;
+    font-size: 0.95rem; font-weight: 600; color: var(--text);
+    white-space: nowrap; pointer-events: none;
+    text-shadow: 0 0 8px rgba(0,0,0,0.5);
 }
-.lock-btn { padding: 10px 28px; font-weight: 800; }
-.lock-btn.locked { background: var(--green); color: #000; border-color: transparent; }
+#interact-prompt b { color: var(--accent-glow); }
 
 /* Crosshair */
 #crosshair {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-    width: 20px; height: 20px; pointer-events: none;
+    width: 24px; height: 24px; pointer-events: none;
 }
-#crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.6); }
+#crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.7); }
 #crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
 #crosshair::after { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
 
@@ -189,9 +175,9 @@ body:not(.is-host) .host-only { display: none !important; }
 
 /* Center message */
 #center-msg {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    position: absolute; top: 45%; left: 50%; transform: translate(-50%,-50%);
     font-family: 'Bungee', sans-serif; font-size: clamp(1.8rem, 6vw, 3rem); font-weight: 900; color: #fff; text-align: center;
-    text-shadow: 0 0 30px rgba(139, 92, 246, 0.8); letter-spacing: 0.08em; pointer-events: none;
+    text-shadow: 0 0 30px rgba(139, 92, 246, 0.8), 0 2px 8px rgba(0,0,0,0.6); letter-spacing: 0.08em; pointer-events: none;
     opacity: 0; transition: opacity 0.3s;
 }
 #center-msg.show { opacity: 1; }
@@ -230,6 +216,9 @@ body:not(.is-host) .host-only { display: none !important; }
     color: var(--accent-glow); padding: 0.9rem 1.4rem; border-radius: 12px;
     font-size: 1rem; font-family: inherit; cursor: pointer; font-weight: 700;
 }
+.touch-btn-2 {
+    bottom: 100px; right: 30px;
+}
 body.touch #joy-left { display: flex !important; }
 body.touch .touch-btn:not(.hidden) { display: block; }
 body:not(.touch) .touch-btn { display: none !important; }
@@ -256,5 +245,6 @@ body.touch #crosshair { display: none; }
     .corner { top: 8px; }
     .role-badge { font-size: 0.7rem; top: 0.8rem; left: 0.8rem; padding: 4px 10px; }
     #timer-value { font-size: 1.2rem; }
-    .prop-btn { width: 44px; height: 44px; }
+    #interact-prompt { font-size: 0.8rem; padding: 8px 14px; bottom: 5rem; }
+    #decoy-hud { bottom: 4.5rem; }
 }
