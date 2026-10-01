@@ -1007,14 +1007,13 @@ $('btn-again').addEventListener('click', () => {
 
 function syncMute() {
     const m = isMuted();
-    for (const [s, m2] of [['icon-sound','icon-muted'],['icon-sound2','icon-muted2'],['icon-sound-hud','icon-muted-hud']]) {
+    for (const [s, m2] of [['icon-sound','icon-muted'],['icon-sound-hud','icon-muted-hud']]) {
         $(s).classList.toggle('hidden', m); $(m2).classList.toggle('hidden', !m);
     }
 }
 syncMute();
 const muteHandler = () => { unlockAudio(); setMuted(!isMuted()); syncMute(); };
 $('btn-mute').addEventListener('click', muteHandler);
-$('btn-mute2').addEventListener('click', muteHandler);
 $('btn-mute-hud').addEventListener('click', muteHandler);
 
 // Touch detection
