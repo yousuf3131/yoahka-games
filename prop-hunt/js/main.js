@@ -333,24 +333,56 @@ function createPropMesh(typeIdx) {
 function createCharacterMesh(color) {
     const group = new THREE.Group();
     const c = new THREE.Color(color);
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a874, roughness: 0.7, metalness: 0.05 });
+    const clothMat = new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.15 });
+    const darkCloth = new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(0.55), roughness: 0.65, metalness: 0.1 });
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.1 });
 
-    // Body
-    const body = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.25, 0.6, 8, 12),
-        new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.2 })
-    );
-    body.position.y = 0.85;
-    body.castShadow = true;
-    group.add(body);
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.48, 0.26), clothMat);
+    torso.position.y = 0.95; torso.castShadow = true;
+    group.add(torso);
+
+    // Shoulders
+    const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.1, 0.28), clothMat);
+    shoulder.position.y = 1.19; shoulder.castShadow = true;
+    group.add(shoulder);
 
     // Head
-    const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 12, 12),
-        new THREE.MeshStandardMaterial({ color: 0xe8c8a0, roughness: 0.7, metalness: 0.05 })
-    );
-    head.position.y = 1.38;
-    head.castShadow = true;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), skinMat);
+    head.position.y = 1.44; head.castShadow = true;
     group.add(head);
+
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1008 });
+    for (const side of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 6), eyeMat);
+        eye.position.set(side * 0.055, 1.46, 0.14);
+        group.add(eye);
+    }
+
+    // Arms
+    for (const side of [-1, 1]) {
+        const upperArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.24, 6, 8), clothMat);
+        upperArm.position.set(side * 0.32, 1.02, 0); upperArm.castShadow = true;
+        group.add(upperArm);
+        const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.22, 6, 8), skinMat);
+        forearm.position.set(side * 0.32, 0.74, 0); forearm.castShadow = true;
+        group.add(forearm);
+    }
+
+    // Legs
+    for (const side of [-1, 1]) {
+        const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.28, 6, 8), darkCloth);
+        thigh.position.set(side * 0.11, 0.5, 0); thigh.castShadow = true;
+        group.add(thigh);
+        const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.26, 6, 8), darkCloth);
+        shin.position.set(side * 0.11, 0.2, 0); shin.castShadow = true;
+        group.add(shin);
+        const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.07, 0.18), shoeMat);
+        shoe.position.set(side * 0.11, 0.04, 0.03); shoe.castShadow = true;
+        group.add(shoe);
+    }
 
     return group;
 }
@@ -1355,7 +1387,7 @@ function gameLoop() {
             continue;
         }
 
-        if (id !== myId) {
+        if (id !== myId && !p.bot) {
             p.x = lerp(p.x, p.targetX || p.x, 1 - Math.exp(-12 * dt));
             p.z = lerp(p.z, p.targetZ || p.z, 1 - Math.exp(-12 * dt));
             p.yaw = lerpAngle(p.yaw, p.targetYaw || p.yaw, 1 - Math.exp(-10 * dt));
