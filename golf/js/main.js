@@ -19,6 +19,7 @@ const ST = { aim: 0, roll: 1, sink: 2, done: 3, splash: 4 };
 // ── State ──────────────────────────────────────────────────────────────────
 let myName = (() => { try { return localStorage.getItem('golfName') || ''; } catch { return ''; } })();
 let role = null, net = null, myId = null, roomCode = '', view = 'menu';
+let netBusy = false;              // a create/join is in flight
 const H = { players: [], phase: 'lobby', hole: -1, scores: {}, done: {}, pos: {}, deadline: 0, ending: false, sendT: 0 };
 const roster = new Map();          // id → { id, name, color, bot, strokes, done }
 let scores = {};                   // id → strokes per hole
@@ -678,33 +679,41 @@ function sendMine(dt) {
 // ── Rooms ──────────────────────────────────────────────────────────────────
 function readName() { myName = $('name').value.trim() || 'Player'; try { localStorage.setItem('golfName', myName); } catch {} }
 async function createRoom() {
-    unlockAudio(); readName();
-    setStatus('menu-status', 'Creating room…');
-    roomCode = makeCode(); role = 'host'; document.body.classList.add('is-host');
-    const hn = new HostNet({ onMessage: hostHandle, onLeave: hostLeave });
-    try { await hn.open(roomCode); } catch (e) {
-        if (e.message === 'code-taken') return createRoom();
-        setStatus('menu-status', e.message, true); role = null; document.body.classList.remove('is-host'); return;
-    }
-    net = hn; myId = hn.peer.id;
-    H.players = []; H.phase = 'lobby';
-    hostHandle(myId, { t: 'hello', name: myName });
-    track('room_create');
+    if (netBusy) return; netBusy = true;
+    try {
+        unlockAudio(); readName();
+        setStatus('menu-status', 'Creating room…');
+        roomCode = makeCode(); role = 'host'; document.body.classList.add('is-host');
+        const hn = new HostNet({ onMessage: hostHandle, onLeave: hostLeave });
+        for (;;) {
+            try { await hn.open(roomCode); break; } catch (e) {
+                if (e.message === 'code-taken') { roomCode = makeCode(); continue; }
+                setStatus('menu-status', e.message, true); role = null; document.body.classList.remove('is-host'); return;
+            }
+        }
+        net = hn; myId = hn.peer.id;
+        H.players = []; H.phase = 'lobby';
+        hostHandle(myId, { t: 'hello', name: myName });
+        track('room_create');
+    } finally { netBusy = false; }
 }
 async function joinRoom() {
     unlockAudio(); readName();
     const code = $('code').value.trim().toUpperCase();
     if (!code) { setStatus('menu-status', 'Enter a room code.', true); return; }
-    setStatus('menu-status', 'Joining…');
-    role = 'client'; document.body.classList.remove('is-host');
-    const cn = new ClientNet({ onMessage: clientHandle, onClose: () => leave('Lost connection to the host.'), onStatus: m => setStatus('menu-status', m),
-        forceRelay: new URLSearchParams(location.search).get('net') === 'relay' });
-    try { myId = await cn.connect(code); } catch (e) { setStatus('menu-status', e.message, true); role = null; return; }
-    net = cn; roomCode = code;
-    cn.send({ t: 'hello', name: myName });
-    // No lobby within 12s → the room probably doesn't exist
-    setTimeout(() => { if (role === 'client' && view === 'menu') leave('No room found with that code.'); }, 12000);
-    track('room_join');
+    if (netBusy) return; netBusy = true;
+    try {
+        setStatus('menu-status', 'Joining…');
+        role = 'client'; document.body.classList.remove('is-host');
+        const cn = new ClientNet({ onMessage: clientHandle, onClose: () => leave('Lost connection to the host.'), onStatus: m => setStatus('menu-status', m),
+            forceRelay: new URLSearchParams(location.search).get('net') === 'relay' });
+        try { myId = await cn.connect(code); } catch (e) { setStatus('menu-status', e.message, true); role = null; return; }
+        net = cn; roomCode = code;
+        cn.send({ t: 'hello', name: myName });
+        // No lobby within 12s → the room probably doesn't exist
+        setTimeout(() => { if (role === 'client' && view === 'menu') leave('No room found with that code.'); }, 12000);
+        track('room_join');
+    } finally { netBusy = false; }
 }
 function startSolo() {
     unlockAudio(); readName();

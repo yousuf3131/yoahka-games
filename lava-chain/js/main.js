@@ -746,33 +746,39 @@ function startSolo() {
 
 // ── Networking ─────────────────────────────────────────────────────────────
 let joinTimer = null;
+let netBusy = false;
 
 async function hostGame() {
-    unlockAudio();
-    myName = $('name').value.trim() || 'Player';
-    try { localStorage.setItem('lcName', myName); } catch {}
-    roomCode = makeCode();
-    role = 'host'; document.body.classList.add('is-host');
-    myId = 'host';
-    H.players = []; H.phase = 'lobby';
-    $('menu-status').textContent = 'Creating room…'; $('menu-status').className = 'status';
-    const hn = new HostNet({
-        onMessage: (fromId, msg) => { if (msg && typeof msg.t === 'string') hostHandle(fromId, msg); },
-        onLeave: id => hostLeave(id),
-    });
-    try { await hn.open(roomCode); }
-    catch (e) {
-        if (e.message === 'code-taken') return hostGame();
-        role = null; document.body.classList.remove('is-host');
-        $('menu-status').textContent = e.message; $('menu-status').className = 'status error';
-        return;
-    }
-    net = hn;
-    $('menu-status').textContent = '';
-    track('host');
-    enterLobby();
-    $('lobby-code').textContent = roomCode;
-    hostHandle(myId, { t: 'hello', name: myName });
+    if (netBusy) return; netBusy = true;
+    try {
+        unlockAudio();
+        myName = $('name').value.trim() || 'Player';
+        try { localStorage.setItem('lcName', myName); } catch {}
+        roomCode = makeCode();
+        role = 'host'; document.body.classList.add('is-host');
+        myId = 'host';
+        H.players = []; H.phase = 'lobby';
+        $('menu-status').textContent = 'Creating room…'; $('menu-status').className = 'status';
+        const hn = new HostNet({
+            onMessage: (fromId, msg) => { if (msg && typeof msg.t === 'string') hostHandle(fromId, msg); },
+            onLeave: id => hostLeave(id),
+        });
+        for (;;) {
+            try { await hn.open(roomCode); break; }
+            catch (e) {
+                if (e.message === 'code-taken') { roomCode = makeCode(); continue; }
+                role = null; document.body.classList.remove('is-host');
+                $('menu-status').textContent = e.message; $('menu-status').className = 'status error';
+                return;
+            }
+        }
+        net = hn;
+        $('menu-status').textContent = '';
+        track('host');
+        enterLobby();
+        $('lobby-code').textContent = roomCode;
+        hostHandle(myId, { t: 'hello', name: myName });
+    } finally { netBusy = false; }
 }
 
 function hostLeave(id) {
@@ -789,21 +795,24 @@ async function joinGame() {
     const code = $('code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length !== 5) { $('menu-status').textContent = 'Enter a 5-letter code'; $('menu-status').className = 'status error'; return; }
 
-    role = 'client';
-    $('menu-status').textContent = 'Connecting…'; $('menu-status').className = 'status';
-    const cn = new ClientNet({
-        onMessage: msg => { if (msg && typeof msg.t === 'string') clientHandle(msg); },
-        onClose: () => { if (net === cn) leave(view === 'menu' ? 'No answer from that room. Check the code.' : 'Lost connection to the host.'); },
-        onStatus: st => { $('menu-status').textContent = st; },
-    });
-    try { myId = await cn.connect(code); }
-    catch (e) { role = null; $('menu-status').textContent = e.message; $('menu-status').className = 'status error'; return; }
-    net = cn; roomCode = code;
-    $('menu-status').textContent = 'Connected. Waiting for the host…';
-    cn.send({ t: 'hello', name: myName });
-    track('join');
-    clearTimeout(joinTimer);
-    joinTimer = setTimeout(() => { if (net === cn && view === 'menu') leave('No answer from that room. Check the code.'); }, 15000);
+    if (netBusy) return; netBusy = true;
+    try {
+        role = 'client';
+        $('menu-status').textContent = 'Connecting…'; $('menu-status').className = 'status';
+        const cn = new ClientNet({
+            onMessage: msg => { if (msg && typeof msg.t === 'string') clientHandle(msg); },
+            onClose: () => { if (net === cn) leave(view === 'menu' ? 'No answer from that room. Check the code.' : 'Lost connection to the host.'); },
+            onStatus: st => { $('menu-status').textContent = st; },
+        });
+        try { myId = await cn.connect(code); }
+        catch (e) { role = null; $('menu-status').textContent = e.message; $('menu-status').className = 'status error'; return; }
+        net = cn; roomCode = code;
+        $('menu-status').textContent = 'Connected. Waiting for the host…';
+        cn.send({ t: 'hello', name: myName });
+        track('join');
+        clearTimeout(joinTimer);
+        joinTimer = setTimeout(() => { if (net === cn && view === 'menu') leave('No answer from that room. Check the code.'); }, 15000);
+    } finally { netBusy = false; }
 }
 
 function leave(reason) {

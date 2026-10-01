@@ -665,6 +665,7 @@ let roomCode = '';
 let view = 'menu';
 let gameActive = false;
 let sendTimer = 0;
+let netBusy = false;
 let myReady = false;
 let roundNum = 0;
 let timeLeft = ROUND_TIME;   // seconds left in the round, shown by the HUD on every peer
@@ -1881,24 +1882,29 @@ function showResults(list) {
 // Room management
 // ============================================================
 async function createRoom() {
-    unlockAudio();
-    myName = $('name').value.trim() || 'Player';
-    try { localStorage.setItem('tagName', myName); } catch {}
-    setStatus('menu-status', 'Creating room...');
-    roomCode = makeCode();
-    role = 'host'; solo = false;
-    document.body.classList.add('is-host');
-    const hn = new HostNet({ onMessage: hostHandle, onLeave: hostLeave });
-    try { await hn.open(roomCode); } catch (e) {
-        if (e.message === 'code-taken') { roomCode = makeCode(); return createRoom(); }
-        setStatus('menu-status', e.message, true); role = null; document.body.classList.remove('is-host'); return;
-    }
-    net = hn;
-    myId = (hn.peer && hn.peer.id) || 'host_' + Math.random().toString(36).slice(2, 8);
-    H.players = []; H.phase = 'lobby';
-    hostHandle(myId, { t: 'hello', name: myName });
-    track('room_create');
-    enterLobby();
+    if (netBusy) return; netBusy = true;
+    try {
+        unlockAudio();
+        myName = $('name').value.trim() || 'Player';
+        try { localStorage.setItem('tagName', myName); } catch {}
+        setStatus('menu-status', 'Creating room...');
+        roomCode = makeCode();
+        role = 'host'; solo = false;
+        document.body.classList.add('is-host');
+        const hn = new HostNet({ onMessage: hostHandle, onLeave: hostLeave });
+        for (;;) {
+            try { await hn.open(roomCode); break; } catch (e) {
+                if (e.message === 'code-taken') { roomCode = makeCode(); continue; }
+                setStatus('menu-status', e.message, true); role = null; document.body.classList.remove('is-host'); return;
+            }
+        }
+        net = hn;
+        myId = (hn.peer && hn.peer.id) || 'host_' + Math.random().toString(36).slice(2, 8);
+        H.players = []; H.phase = 'lobby';
+        hostHandle(myId, { t: 'hello', name: myName });
+        track('room_create');
+        enterLobby();
+    } finally { netBusy = false; }
 }
 
 async function joinRoom() {
@@ -1907,15 +1913,18 @@ async function joinRoom() {
     try { localStorage.setItem('tagName', myName); } catch {}
     const code = $('code').value.trim().toUpperCase();
     if (!code) { setStatus('menu-status', 'Enter a room code.', true); return; }
-    setStatus('menu-status', 'Joining...');
-    seenSeq.clear();
-    role = 'client'; solo = false; document.body.classList.remove('is-host');
-    const cn = new ClientNet({ onMessage: clientHandle, onClose: () => leave('Lost connection.'), onStatus: msg => setStatus('menu-status', msg), forceRelay: new URLSearchParams(location.search).get('net') === 'relay' });
-    try { myId = await cn.connect(code); } catch (e) { setStatus('menu-status', e.message, true); role = null; return; }
-    net = cn; roomCode = code;
-    cn.send({ t: 'hello', name: myName });
-    track('room_join');
-    enterLobby();
+    if (netBusy) return; netBusy = true;
+    try {
+        setStatus('menu-status', 'Joining...');
+        seenSeq.clear();
+        role = 'client'; solo = false; document.body.classList.remove('is-host');
+        const cn = new ClientNet({ onMessage: clientHandle, onClose: () => leave('Lost connection.'), onStatus: msg => setStatus('menu-status', msg), forceRelay: new URLSearchParams(location.search).get('net') === 'relay' });
+        try { myId = await cn.connect(code); } catch (e) { setStatus('menu-status', e.message, true); role = null; return; }
+        net = cn; roomCode = code;
+        cn.send({ t: 'hello', name: myName });
+        track('room_join');
+        enterLobby();
+    } finally { netBusy = false; }
 }
 
 function startSolo() {

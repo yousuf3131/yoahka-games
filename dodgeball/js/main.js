@@ -354,6 +354,7 @@ function updateParticles(dt) {
 let myName = (() => { try { return localStorage.getItem('dodgeballName') || ''; } catch { return ''; } })();
 let role = null;     // 'host' | 'client' | null
 let net = null;
+let netBusy = false;
 let myId = null;
 let roomCode = '';
 let view = 'menu';   // 'menu' | 'lobby' | 'game' | 'results'
@@ -1428,6 +1429,7 @@ function showResults(list) {
 // Room management
 // ============================================================
 async function createRoom() {
+    if (netBusy) return;
     unlockAudio();
     myName = $('name').value.trim() || 'Player';
     try { localStorage.setItem('dodgeballName', myName); } catch {}
@@ -1435,11 +1437,14 @@ async function createRoom() {
     roomCode = makeCode();
     role = 'host';
     document.body.classList.add('is-host');
+    netBusy = true;
     const hn = new HostNet({ onMessage: hostHandle, onLeave: hostLeave });
     try { await hn.open(roomCode); } catch (e) {
+        netBusy = false;
         if (e.message === 'code-taken') { roomCode = makeCode(); return createRoom(); }
         setStatus('menu-status', e.message, true); role = null; document.body.classList.remove('is-host'); return;
     }
+    netBusy = false;
     net = hn;
     myId = (hn.peer && hn.peer.id) || 'host_' + Math.random().toString(36).slice(2, 8);
     H.players = []; H.phase = 'lobby';
@@ -1449,6 +1454,7 @@ async function createRoom() {
 }
 
 async function joinRoom() {
+    if (netBusy) return;
     unlockAudio();
     myName = $('name').value.trim() || 'Player';
     try { localStorage.setItem('dodgeballName', myName); } catch {}
@@ -1456,8 +1462,10 @@ async function joinRoom() {
     if (!code) { setStatus('menu-status', 'Enter a room code.', true); return; }
     setStatus('menu-status', 'Joining...');
     role = 'client'; document.body.classList.remove('is-host');
+    netBusy = true;
     const cn = new ClientNet({ onMessage: clientHandle, onClose: () => leave('Lost connection.'), onStatus: msg => setStatus('menu-status', msg), forceRelay: new URLSearchParams(location.search).get('net') === 'relay' });
-    try { myId = await cn.connect(code); } catch (e) { setStatus('menu-status', e.message, true); role = null; return; }
+    try { myId = await cn.connect(code); } catch (e) { netBusy = false; setStatus('menu-status', e.message, true); role = null; return; }
+    netBusy = false;
     net = cn; roomCode = code;
     cn.send({ t: 'hello', name: myName });
     track('room_join');

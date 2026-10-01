@@ -1630,7 +1630,7 @@ function backToLobby(msg) {
     if (msg && msg.players) renderLobby(msg.players, msg.settings);
 }
 
-let joinTimer = null;
+let joinTimer = null, netBusy = false;
 const NO_ANSWER = 'No answer from that room. Check the code, and ask the host to keep the game open.';
 function enterJoinedLobby() {
     if (view !== 'menu' || role !== 'client') return;
@@ -1647,6 +1647,7 @@ function readName() {
 try { $('name').value = localStorage.getItem('blackoutName') || ''; } catch (e) {}
 
 async function createRoom(isSolo) {
+    if (netBusy) return;
     readName(); unlockAudio(); sfx.click();
     role = 'host'; solo = isSolo;
     document.body.classList.add('is-host');
@@ -1656,16 +1657,19 @@ async function createRoom(isSolo) {
     if (!isSolo) {
         setMenuStatus('Creating room...');
         roomCode = makeCode();
+        netBusy = true;
         const hn = new HostNet({
             onMessage: (from, msg) => hostHandle(from, msg),
             onLeave: id => hostLeave(id),
         });
         try { await hn.open(roomCode); }
         catch (e) {
+            netBusy = false;
             if (e.message === 'code-taken') return createRoom(false);
             role = ''; document.body.classList.remove('is-host');
             return setMenuStatus(e.message, true);
         }
+        netBusy = false;
         net = hn;
         setMenuStatus('');
         track('room_create');
@@ -1702,12 +1706,14 @@ $('btn-create').onclick = () => createRoom(false);
 $('btn-solo').onclick = () => createRoom(true);
 $('btn-join').onclick = async () => {
     const code = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (netBusy) return;
     if (code.length !== 5) return setMenuStatus('Room codes are 5 letters or numbers.', true);
     readName(); unlockAudio(); sfx.click();
     setMenuStatus('Connecting...');
     role = 'client'; solo = false;
     document.body.classList.remove('is-host', 'solo');
     const q = new URLSearchParams(location.search);
+    netBusy = true;
     const cn = new ClientNet({
         onMessage: msg => clientHandle(msg),
         onClose: () => {
@@ -1721,7 +1727,8 @@ $('btn-join').onclick = async () => {
         forceRelay: q.get('net') === 'relay' || q.has('relay'),
     });
     try { myId = await cn.connect(code); }
-    catch (e) { role = ''; return setMenuStatus(e.message, true); }
+    catch (e) { netBusy = false; role = ''; return setMenuStatus(e.message, true); }
+    netBusy = false;
     net = cn; roomCode = code;
     setMenuStatus('Connected. Waiting for the host to answer...');
     net.send({ t: 'hello', name: myName });
