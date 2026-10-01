@@ -1433,9 +1433,13 @@ async function createRoom(solo = false) {
     hostHandle(myId, { t: 'hello', name });
 
     if (solo) {
-        // Add bots
         for (let i = 0; i < 3; i++) addBot();
     }
+
+    $('room-code').textContent = roomCode;
+    view = 'lobby'; show('lobby');
+    setStatus('menu-status', '');
+    playMusic('menu');
 }
 
 async function joinRoom() {

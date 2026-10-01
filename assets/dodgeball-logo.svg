@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 300">
+  <defs>
+    <linearGradient id="dbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1008"/><stop offset="1" stop-color="#2a1a0a"/></linearGradient>
+    <linearGradient id="dfloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b6530"/><stop offset="1" stop-color="#6b4a20"/></linearGradient>
+    <linearGradient id="dwall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2018"/><stop offset="1" stop-color="#1a1008"/></linearGradient>
+    <radialGradient id="dball" cx="0.35" cy="0.3" r="0.7"><stop offset="0" stop-color="#ff6655"/><stop offset="0.7" stop-color="#dd2200"/><stop offset="1" stop-color="#991100"/></radialGradient>
+    <radialGradient id="dball2" cx="0.35" cy="0.3" r="0.7"><stop offset="0" stop-color="#ff8866"/><stop offset="0.7" stop-color="#ee3311"/><stop offset="1" stop-color="#aa2200"/></radialGradient>
+    <filter id="dglow"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="dsoft"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="dbglow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Background -->
+  <rect width="660" height="300" fill="url(#dbg)"/>
+  <!-- Wall -->
+  <rect x="0" y="0" width="660" height="120" fill="url(#dwall)"/>
+  <line x1="0" y1="120" x2="660" y2="120" stroke="#4a3a20" stroke-width="3"/>
+  <!-- Court floor -->
+  <rect x="0" y="120" width="660" height="180" fill="url(#dfloor)"/>
+  <!-- Wood grain lines -->
+  <g stroke="#7a5828" stroke-width="0.5" opacity="0.3">
+    <line x1="0" y1="135" x2="660" y2="135"/><line x1="0" y1="155" x2="660" y2="155"/>
+    <line x1="0" y1="175" x2="660" y2="175"/><line x1="0" y1="195" x2="660" y2="195"/>
+    <line x1="0" y1="215" x2="660" y2="215"/><line x1="0" y1="235" x2="660" y2="235"/>
+    <line x1="0" y1="255" x2="660" y2="255"/><line x1="0" y1="275" x2="660" y2="275"/>
+  </g>
+  <!-- Court center line -->
+  <line x1="330" y1="120" x2="330" y2="300" stroke="#fff" stroke-width="3" opacity="0.25"/>
+  <!-- Court center circle -->
+  <circle cx="330" cy="210" r="50" fill="none" stroke="#fff" stroke-width="2" opacity="0.15"/>
+  <!-- Court boundary lines -->
+  <rect x="40" y="130" width="580" height="160" fill="none" stroke="#fff" stroke-width="2" opacity="0.2" rx="3"/>
+  <!-- Wall details -->
+  <rect x="40" y="20" width="120" height="80" rx="4" fill="#1a1008" stroke="#3a2a18" stroke-width="1.5"/>
+  <rect x="500" y="20" width="120" height="80" rx="4" fill="#1a1008" stroke="#3a2a18" stroke-width="1.5"/>
+  <text x="100" y="62" text-anchor="middle" font-size="11" font-weight="800" fill="#f97316" opacity="0.6" font-family="Arial,sans-serif" letter-spacing="2">HOME</text>
+  <text x="560" y="62" text-anchor="middle" font-size="11" font-weight="800" fill="#3b82f6" opacity="0.6" font-family="Arial,sans-serif" letter-spacing="2">AWAY</text>
+  <!-- Orange player throwing (left side) -->
+  <g transform="translate(180 185)">
+    <ellipse cx="0" cy="50" rx="18" ry="4" fill="#000" opacity="0.2" filter="url(#dsoft)"/>
+    <!-- Legs -->
+    <line x1="-8" y1="30" x2="-14" y2="52" stroke="#ea580c" stroke-width="9" stroke-linecap="round"/>
+    <line x1="8" y1="28" x2="18" y2="48" stroke="#ea580c" stroke-width="9" stroke-linecap="round"/>
+    <!-- Body -->
+    <rect x="-14" y="4" width="28" height="28" rx="6" fill="#f97316"/>
+    <rect x="-10" y="10" width="20" height="10" rx="2" fill="#ea580c"/>
+    <!-- Back arm -->
+    <line x1="-14" y1="10" x2="-32" y2="22" stroke="#e8b08a" stroke-width="8" stroke-linecap="round"/>
+    <!-- Head -->
+    <circle cx="0" cy="-6" r="13" fill="#e8b08a"/>
+    <ellipse cx="-4" cy="-9" rx="2" ry="2.5" fill="#2a1a0a"/>
+    <ellipse cx="6" cy="-9" rx="2" ry="2.5" fill="#2a1a0a"/>
+    <path d="M-2 -3 Q1 0 4 -3" stroke="#c07a5a" stroke-width="1.5" fill="none"/>
+    <!-- Throwing arm with ball -->
+    <line x1="14" y1="8" x2="40" y2="-8" stroke="#e8b08a" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="44" cy="-12" r="10" fill="url(#dball)" filter="url(#dbglow)"/>
+    <path d="M38 -16 Q44 -20 50 -16" stroke="#aa1100" stroke-width="1" fill="none" opacity="0.6"/>
+    <path d="M38 -8 Q44 -4 50 -8" stroke="#aa1100" stroke-width="1" fill="none" opacity="0.6"/>
+  </g>
+  <!-- Blue player dodging (right side) -->
+  <g transform="translate(460 190) rotate(-8)">
+    <ellipse cx="0" cy="48" rx="16" ry="4" fill="#000" opacity="0.2" filter="url(#dsoft)"/>
+    <!-- Legs (jumping) -->
+    <line x1="-8" y1="28" x2="-16" y2="46" stroke="#1d4ed8" stroke-width="8" stroke-linecap="round"/>
+    <line x1="8" y1="26" x2="14" y2="44" stroke="#1d4ed8" stroke-width="8" stroke-linecap="round"/>
+    <!-- Body leaning back -->
+    <rect x="-12" y="2" width="24" height="26" rx="5" fill="#3b82f6"/>
+    <rect x="-8" y="8" width="16" height="10" rx="2" fill="#2563eb"/>
+    <!-- Arms up (dodging) -->
+    <line x1="-12" y1="6" x2="-30" y2="-14" stroke="#c8a07a" stroke-width="7" stroke-linecap="round"/>
+    <line x1="12" y1="6" x2="28" y2="-16" stroke="#c8a07a" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-30" cy="-14" r="5" fill="#c8a07a"/>
+    <circle cx="28" cy="-16" r="5" fill="#c8a07a"/>
+    <!-- Head -->
+    <circle cx="0" cy="-8" r="12" fill="#c8a07a"/>
+    <ellipse cx="-4" cy="-11" rx="2" ry="2.5" fill="#2a1a0a"/>
+    <ellipse cx="6" cy="-11" rx="2" ry="2.5" fill="#2a1a0a"/>
+    <path d="M-4 -4 Q1 -1 6 -4" stroke="#a07a5a" stroke-width="1.5" fill="none"/>
+  </g>
+  <!-- Green player catching (center-right) -->
+  <g transform="translate(360 200)">
+    <ellipse cx="0" cy="42" rx="14" ry="3" fill="#000" opacity="0.15" filter="url(#dsoft)"/>
+    <line x1="-6" y1="26" x2="-10" y2="42" stroke="#15803d" stroke-width="7" stroke-linecap="round"/>
+    <line x1="6" y1="26" x2="10" y2="42" stroke="#15803d" stroke-width="7" stroke-linecap="round"/>
+    <rect x="-10" y="4" width="20" height="24" rx="5" fill="#22c55e"/>
+    <rect x="-7" y="9" width="14" height="9" rx="2" fill="#16a34a"/>
+    <line x1="-10" y1="8" x2="-26" y2="2" stroke="#d4a874" stroke-width="7" stroke-linecap="round"/>
+    <line x1="10" y1="8" x2="26" y2="2" stroke="#d4a874" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-26" cy="2" r="5" fill="#d4a874"/>
+    <circle cx="26" cy="2" r="5" fill="#d4a874"/>
+    <circle cx="0" cy="-6" r="11" fill="#d4a874"/>
+    <ellipse cx="-3" cy="-8" rx="1.5" ry="2" fill="#2a1a0a"/>
+    <ellipse cx="5" cy="-8" rx="1.5" ry="2" fill="#2a1a0a"/>
+  </g>
+  <!-- Flying balls -->
+  <!-- Ball in motion (thrown) -->
+  <g opacity="0.9">
+    <ellipse cx="290" cy="176" rx="22" ry="3" fill="#ff4400" opacity="0.15" filter="url(#dglow)"/>
+    <line x1="230" y1="180" x2="280" y2="172" stroke="#ff6644" stroke-width="2" opacity="0.3" stroke-linecap="round"/>
+    <line x1="245" y1="178" x2="275" y2="173" stroke="#ff6644" stroke-width="3" opacity="0.4" stroke-linecap="round"/>
+    <circle cx="292" cy="170" r="12" fill="url(#dball2)" filter="url(#dbglow)"/>
+    <path d="M286 166 Q292 162 298 166" stroke="#cc2200" stroke-width="1" fill="none" opacity="0.5"/>
+  </g>
+  <!-- Ball on ground (center) -->
+  <circle cx="330" cy="240" r="8" fill="url(#dball)" opacity="0.8"/>
+  <ellipse cx="330" cy="250" rx="10" ry="3" fill="#000" opacity="0.15"/>
+  <!-- Ball on ground 2 -->
+  <circle cx="310" cy="248" r="7" fill="url(#dball)" opacity="0.7"/>
+  <ellipse cx="310" cy="256" rx="9" ry="2.5" fill="#000" opacity="0.12"/>
+  <!-- Ball on ground 3 -->
+  <circle cx="350" cy="244" r="7.5" fill="url(#dball)" opacity="0.75"/>
+  <ellipse cx="350" cy="253" rx="9" ry="2.5" fill="#000" opacity="0.12"/>
+  <!-- Speed lines around thrown ball -->
+  <g stroke="#f97316" stroke-width="1.5" opacity="0.4" stroke-linecap="round">
+    <line x1="260" y1="168" x2="240" y2="172"/>
+    <line x1="258" y1="174" x2="238" y2="178"/>
+    <line x1="262" y1="180" x2="248" y2="182"/>
+  </g>
+  <!-- Impact star (near dodging player) -->
+  <g transform="translate(420 178)" fill="#f97316" opacity="0.3" filter="url(#dsoft)">
+    <polygon points="0,-12 3,-4 12,-4 5,2 8,10 0,5 -8,10 -5,2 -12,-4 -3,-4"/>
+  </g>
+  <!-- Title -->
+  <g font-family="'Arial Black','Segoe UI Black',Impact,sans-serif" font-weight="900" text-anchor="middle">
+    <text x="333" y="78" font-size="62" letter-spacing="4" fill="#000" opacity="0.3">DODGEBALL</text>
+    <text x="330" y="75" font-size="62" letter-spacing="4" fill="#f97316" filter="url(#dbglow)">DODGEBALL</text>
+    <text x="330" y="100" font-size="13" letter-spacing="7" fill="#fbbf24" opacity="0.85">THROW &#183; CATCH &#183; SURVIVE</text>
+  </g>
+  <!-- Vignette -->
+  <radialGradient id="dvig" cx="50%" cy="50%" r="70%">
+    <stop offset="55%" stop-color="transparent"/>
+    <stop offset="100%" stop-color="rgba(0,0,0,0.5)"/>
+  </radialGradient>
+  <rect width="660" height="300" fill="url(#dvig)"/>
+</svg>
