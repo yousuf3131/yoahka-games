@@ -52,6 +52,9 @@ renderer.toneMappingExposure = 1.1;
 addEventListener('resize', () => {
     renderer.setSize(innerWidth, innerHeight);
     camera.aspect = innerWidth / innerHeight;
+    camera.fov = isPortrait() ? 75 : 50;
+    CAM_DIST = isPortrait() ? 22 : 14;
+    CAM_HEIGHT = isPortrait() ? 16 : 10;
     camera.updateProjectionMatrix();
 });
 
@@ -59,7 +62,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1410);
 scene.fog = new THREE.Fog(0x1a1410, 40, 80);
 
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 200);
+const isPortrait = () => innerWidth < innerHeight;
+const camera = new THREE.PerspectiveCamera(isPortrait() ? 75 : 50, innerWidth / innerHeight, 0.5, 200);
 camera.position.set(0, 22, 20);
 camera.lookAt(0, 0, 0);
 
@@ -367,8 +371,8 @@ let me = null;
 // Camera state
 let camYaw = 0;
 let camPitch = 0.5;
-const CAM_DIST = 14;
-const CAM_HEIGHT = 10;
+let CAM_DIST = isPortrait() ? 22 : 14;
+let CAM_HEIGHT = isPortrait() ? 16 : 10;
 let camTarget = new THREE.Vector3(0, 0, 0);
 let camPos = new THREE.Vector3(0, 22, 20);
 
