@@ -18,7 +18,7 @@ import { sfx, isMuted, setMuted, unlockAudio, setHeart, startAmbience, stopAmbie
 const track = (name, params) => { if (window.track) window.track(name, params); };
 
 /* ── tuning ────────────────────────────────────────────── */
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const RAD = 0.38;                              // body radius for walls
 const SURV_WALK = 3.9, SURV_RUN = 6.3;
 const HUNT_WALK = 4.7, HUNT_DASH = 8.8, DASH_TIME = 1.1, DASH_CD = 9;
@@ -32,8 +32,8 @@ const CORN_SLOW = 0.75;
 const INTRO_TIME = 5, RELEASE_TIME = 10, END_TIME = 7;
 const SEND_EVERY = 0.05;
 const SPOT_POWER = 170;
-const COLORS = ['#ffcf8a', '#7fc8ff', '#9be08a', '#f59ad0', '#c6a2ff', '#ff9f5a', '#8ae0d8', '#e8e0a0'];
-const BOT_NAMES = ['Laurie', 'Sidney', 'Nancy', 'Ash', 'Ginny', 'Tommy', 'Chris', 'Marty'];
+const COLORS = ['#ffcf8a', '#7fc8ff', '#9be08a', '#f59ad0', '#c6a2ff', '#ff9f5a', '#8ae0d8', '#e8e0a0', '#ff8a8a', '#a0c8ff'];
+const BOT_NAMES = ['Laurie', 'Sidney', 'Nancy', 'Ash', 'Ginny', 'Tommy', 'Chris', 'Marty', 'Dana', 'Ripley'];
 const roundTime = nSurv => Math.min(180, 75 + nSurv * 18);
 
 const $ = id => document.getElementById(id);

@@ -8,10 +8,10 @@ import { getRandomWords } from './words.js?v=3';
 // Analytics: no-op until ../js/analytics.js loads, and always a no-op when testing locally
 const track = (name, params) => { if (window.track) window.track(name, params); };
 
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const ROUND_TIME = 60;
-const COLORS = ['#8b5cf6', '#e0584f', '#3b82f6', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#2ec495'];
-const BOT_NAMES = ['Doodle Dan', 'Sketch Sally', 'Paint Pete', 'Art Annie', 'Scribble Sam', 'Crayon Carl', 'Brush Betty', 'Pencil Pat'];
+const COLORS = ['#8b5cf6', '#e0584f', '#3b82f6', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#2ec495', '#22d3ee', '#b45309'];
+const BOT_NAMES = ['Doodle Dan', 'Sketch Sally', 'Paint Pete', 'Art Annie', 'Scribble Sam', 'Crayon Carl', 'Brush Betty', 'Pencil Pat', 'Marker Mike', 'Ink Irene'];
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

@@ -9,9 +9,9 @@ const $ = id => document.getElementById(id);
 const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const MAX_PLAYERS = 8;
-const COLORS = ['#f8fafc', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6'];
-const BOT_NAMES = ['Birdie Bot', 'Putt Master', 'Sir Chips', 'Bogey Bill', 'Eagle Eye', 'Tee Rex', 'Lil Wedge', 'Captain Par'];
+const MAX_PLAYERS = 10;
+const COLORS = ['#f8fafc', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#22d3ee', '#b45309'];
+const BOT_NAMES = ['Birdie Bot', 'Putt Master', 'Sir Chips', 'Bogey Bill', 'Eagle Eye', 'Tee Rex', 'Lil Wedge', 'Captain Par', 'Hole Hunter', 'Iron Ivan'];
 const SEND_EVERY = 1 / 12;
 const HOLE_TIMEOUT = 60;           // seconds others get once someone finishes
 const ST = { aim: 0, roll: 1, sink: 2, done: 3, splash: 4 };

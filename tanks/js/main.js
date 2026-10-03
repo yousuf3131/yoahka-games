@@ -18,15 +18,15 @@ import { updateBot, BOT_CFG } from './bots.js?v=5';
 const track = (name, params) => { if (window.track) window.track(name, params); };
 
 const { $, rand } = G;
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const WIN_ROUNDS = 3;
 const COUNTDOWN_MS = 3000;
 const SEND_EVERY = 0.05;       // 20 position updates a second (the relay halves this)
 const INVULN = 1.2;            // spawn protection after GO
 const ROUND_LIMIT = 150;       // a round that drags on this long is a draw
 const COOP_LIVES = 3;          // shared lives pool for online co-op
-const COLORS = ['#3b82f6', '#e0584f', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#e2e8f0', '#22d3ee'];
-const BOT_NAMES = ['Sarge', 'Rusty', 'Boomer', 'Clank', 'Dozer', 'Gunner', 'Tread', 'Major Mayhem'];
+const COLORS = ['#3b82f6', '#e0584f', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#e2e8f0', '#22d3ee', '#2ec495', '#b45309'];
+const BOT_NAMES = ['Sarge', 'Rusty', 'Boomer', 'Clank', 'Dozer', 'Gunner', 'Tread', 'Major Mayhem', 'Blaster', 'Ironside'];
 const PLAYER_CFG = G.TYPES.player;
 const COOP_NAMES = { b: 'Brown', g: 'Grey', t: 'Teal', r: 'Red', k: 'Black' };
 // Convert a Three.js hex number to a CSS colour string
@@ -336,7 +336,7 @@ function hostHandle(from, msg) {
     if (!msg || typeof msg !== 'object') return;
     if (msg.t === 'hello') {
         if (H.players.has(from)) return;
-        if (H.players.size >= MAX_PLAYERS) return rejectPeer(from, 'That room is full (8 tanks max).');
+        if (H.players.size >= MAX_PLAYERS) return rejectPeer(from, 'That room is full (10 tanks max).');
         if (H.phase !== 'lobby') return rejectPeer(from, 'A battle is in progress in that room. Try again when it ends.');
         const p = { id: from, name: cleanName(msg.name), color: nextColor(), ready: false, bot: false };
         H.players.set(from, p);

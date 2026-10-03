@@ -13,7 +13,7 @@ const esc = s => { const d = document.createElement('div'); d.textContent = s; r
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const MAX_PLAYERS   = 8;
+const MAX_PLAYERS   = 10;
 const MOVE_SPEED    = 5.5;
 const ACCEL         = 18;
 const FRICTION      = 14;
@@ -27,8 +27,8 @@ const SEND_EVERY    = 0.05;
 const MONSTER_BASE_SPEED = 2.0;
 const BATTERY_DRAIN = 0.007;
 const BATTERY_REGEN = 0.012;
-const COLORS = ['#e0584f','#3b82f6','#2ec495','#f2c14e','#a78bfa','#f97316','#ec4899','#e2e8f0'];
-const BOT_NAMES = ['The Brave','Shadow One','Last Hope','Echo','Phantom','Wraith','Cipher','Nomad'];
+const COLORS = ['#e0584f','#3b82f6','#2ec495','#f2c14e','#a78bfa','#f97316','#ec4899','#e2e8f0','#22d3ee','#b45309'];
+const BOT_NAMES = ['The Brave','Shadow One','Last Hope','Echo','Phantom','Wraith','Cipher','Nomad','Reaper','Ghost'];
 
 // ── State ──────────────────────────────────────────────────────────────────
 let myName = (() => { try { return localStorage.getItem('dlName') || ''; } catch { return ''; } })();

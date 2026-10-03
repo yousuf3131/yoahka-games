@@ -20,7 +20,7 @@ import { $, showScreen, setStatus, toast, esc, banner, hideBanner, setHint } fro
 // Analytics: no-op until ../js/analytics.js loads, and always a no-op when testing locally
 const track = (name, params) => { if (window.track) window.track(name, params); };
 
-const MAX_PLAYERS = 6;
+const MAX_PLAYERS = 10;
 const ROUNDS = 3;
 const WINS_NEEDED = 2;
 const TURN_MS = 20000;
@@ -28,7 +28,7 @@ const GRACE_MS = 1500;         // host waits a little longer than the shooter's 
 const AIM_SEND_MS = 110;       // live aim stream rate (about 9 per second)
 const ONLINE_MIN_VIEW_W = 700; // zoom out on narrow screens so you can see around you
 const COLORS = ['#2ec495', '#e0584f', '#4f8fe0', '#f2c14e', '#b07cf0', '#f08a3c'];
-const BOT_NAMES = ['Fletcher', 'Quill', 'Kestrel', 'Yew', 'Sparrow', 'Longbow'];
+const BOT_NAMES = ['Fletcher', 'Quill', 'Kestrel', 'Yew', 'Sparrow', 'Longbow', 'Bowman', 'Hawk', 'Elm', 'Nock'];
 
 let role = null;      // 'host' | 'client'
 let solo = false;
@@ -101,7 +101,7 @@ function hostHandle(from, msg) {
     switch (msg.t) {
         case 'hello': {
             if (present(from)) return;
-            if (H.players.length >= MAX_PLAYERS) { if (net) net.send(from, { t: 'reject', reason: 'That room is full (6 archers max).' }); return; }
+            if (H.players.length >= MAX_PLAYERS) { if (net) net.send(from, { t: 'reject', reason: 'That room is full (10 archers max).' }); return; }
             if (H.phase !== 'lobby') { if (net) net.send(from, { t: 'reject', reason: 'That room is in the middle of a match. Try again when it is back in the lobby.' }); return; }
             const used = new Set(H.players.map(p => p.color));
             const color = COLORS.find(c => !used.has(c)) || COLORS[0];

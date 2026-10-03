@@ -20,13 +20,13 @@ const trackEvent = (name, params) => { if (window.track) window.track(name, para
 // ============================================================
 // Constants and helpers
 // ============================================================
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const VOTE_MS = 12000;
 const COUNTDOWN_MS = 4000;
 const FINISH_GRACE_MS = 30000;
 const SEND_EVERY = 0.05;
-const COLORS = ['#2ec495', '#e0584f', '#3b82f6', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#e2e8f0'];
-const BOT_NAMES = ['Turbo Gran', 'Sir Skids', 'Captain Crash', 'Noodle', 'Lil Wheelie', 'Pothole Pete', 'Mrs Bonkers', 'Dave'];
+const COLORS = ['#2ec495', '#e0584f', '#3b82f6', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#e2e8f0', '#22d3ee', '#b45309'];
+const BOT_NAMES = ['Turbo Gran', 'Sir Skids', 'Captain Crash', 'Noodle', 'Lil Wheelie', 'Pothole Pete', 'Mrs Bonkers', 'Dave', 'Skid Mark', 'Rev Rita'];
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -485,7 +485,7 @@ function hostHandle(from, msg) {
     if (!msg || typeof msg !== 'object') return;
     if (msg.t === 'hello') {
         if (H.players.has(from)) return;
-        if (H.players.size >= MAX_PLAYERS) return rejectPeer(from, 'That room is full (8 racers max).');
+        if (H.players.size >= MAX_PLAYERS) return rejectPeer(from, 'That room is full (10 racers max).');
         if (H.phase !== 'lobby') return rejectPeer(from, 'A race is in progress. Try again in a minute.');
         const p = { id: from, name: cleanName(msg.name), vehicle: VEHICLE_BY_ID[msg.vehicle] ? msg.vehicle : 'bubble', ready: false, bot: false, color: nextColor(), custom: msg.custom || {} };
         H.players.set(from, p);

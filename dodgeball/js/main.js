@@ -9,7 +9,7 @@ const track = (name, params) => { if (window.track) window.track(name, params); 
 // ============================================================
 // Constants
 // ============================================================
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const BEST_OF = 3;
 const ARENA_W = 30;
 const ARENA_D = 20;
@@ -31,8 +31,8 @@ const CATCH_WINDOW = 0.35;
 const CATCH_CD = 1.0;
 const SEND_EVERY = 0.05;
 const HIT_R = 0.7;
-const COLORS = ['#f97316', '#3b82f6', '#2ec495', '#f2c14e', '#a78bfa', '#e0584f', '#ec4899', '#e2e8f0'];
-const BOT_NAMES = ['Cannon', 'Slingshot', 'Rocket', 'Blitz', 'Boomer', 'Sniper', 'Turbo', 'Flash'];
+const COLORS = ['#f97316', '#3b82f6', '#2ec495', '#f2c14e', '#a78bfa', '#e0584f', '#ec4899', '#e2e8f0', '#22d3ee', '#b45309'];
+const BOT_NAMES = ['Cannon', 'Slingshot', 'Rocket', 'Blitz', 'Boomer', 'Sniper', 'Turbo', 'Flash', 'Bullet', 'Storm'];
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

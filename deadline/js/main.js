@@ -12,7 +12,7 @@ import { startMusic, stopMusic, setMusicVolume } from './music.js?v=5';
 import { tiltAmount, tiltToSteer } from './tilt.js?v=5';
 
 /* ── constants ─────────────────────────────────────────── */
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const BEST_OF     = 5;
 const BASE_SPEED  = 40;
 const BOOST_SPEED = 60;
@@ -36,8 +36,8 @@ const TRAIL_MAX_LEN = 300;
 const TRAIL_FADE_LEN = 40;
 const CYCLE_R     = 0.6;
 
-const COLORS = ['#00e5ff','#ff0055','#39ff14','#ffea00','#bf5fff','#ff6d00','#ff69b4','#e0e0e0'];
-const BOT_NAMES = ['Tron','Quorra','Rinzler','CLU','Flynn','Sark','Ram','Yori'];
+const COLORS = ['#00e5ff','#ff0055','#39ff14','#ffea00','#bf5fff','#ff6d00','#ff69b4','#e0e0e0','#ff4444','#44ffcc'];
+const BOT_NAMES = ['Tron','Quorra','Rinzler','CLU','Flynn','Sark','Ram','Yori','Dumont','Crom'];
 
 /* ── arenas ────────────────────────────────────────────── */
 const ARENAS = [

@@ -17,7 +17,7 @@ const lerpAngle = (a, b, t) => {
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────
-const MAX_PLAYERS    = 8;
+const MAX_PLAYERS    = 10;
 const MOVE_SPEED     = 6.0;
 const HIDER_SPEED    = 4.2;
 const ACCEL          = 14;
@@ -41,8 +41,8 @@ const CAM_DIST   = 8;
 const CAM_HEIGHT = 5;
 const CAM_PITCH_DEFAULT = 0.45;
 
-const COLORS = ['#e0584f','#3b82f6','#2ec495','#f2c14e','#a78bfa','#f97316','#ec4899','#e2e8f0'];
-const BOT_NAMES = ['Barrel Bob','Chair Carl','Lamp Larry','Vase Val','Box Bart','Bucket Ben','Crate Craig','Shadow'];
+const COLORS = ['#e0584f','#3b82f6','#2ec495','#f2c14e','#a78bfa','#f97316','#ec4899','#e2e8f0','#22d3ee','#b45309'];
+const BOT_NAMES = ['Barrel Bob','Chair Carl','Lamp Larry','Vase Val','Box Bart','Bucket Ben','Crate Craig','Shadow','Shelf Sam','Keg Kevin'];
 
 // ── Prop Definitions ──────────────────────────────────────────────────────
 const PROP_DEFS = [

@@ -20,7 +20,8 @@ const LAVA_WARN_DIST  = 5;      // metres below player → warning
 const RITUAL_NONE     = -1;
 
 const PLAYER_COLORS   = [0xff5500, 0x44aaff, 0xffcc00, 0x88ff44,
-                         0xff44bb, 0x00ffcc, 0xaa44ff, 0xff9900];
+                         0xff44bb, 0x00ffcc, 0xaa44ff, 0xff9900,
+                         0x22d3ee, 0xb45309];
 
 // ── State ──────────────────────────────────────────────────────────────────
 let role = null, net = null, myId = null, roomCode = '';
@@ -76,7 +77,7 @@ function hostHandle(fromId, msg) {
             if (H.players.some(p => p.id === fromId)) return; // the relay can deliver twice
             const reject = reason => { if (net && fromId !== myId) net.send(fromId, { t: 'reject', reason }); };
             if (H.phase !== 'lobby') return reject('A game is already running in that room. Try again when it ends.');
-            if (H.players.length >= 8) return reject('That room is full (8 players max).');
+            if (H.players.length >= 10) return reject('That room is full (10 players max).');
             let colorIdx = 0;
             while (H.players.some(p => p.colorIdx === colorIdx)) colorIdx++;
             H.players.push({ id: fromId, name: String(msg.name || 'Player').slice(0, 16), colorIdx });

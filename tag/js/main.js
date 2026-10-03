@@ -7,7 +7,7 @@ import { play as playMusic } from './music.js?v=3';
 // Analytics: no-op until ../js/analytics.js loads, and always a no-op when testing locally
 const track = (name, params) => { if (window.track) window.track(name, params); };
 
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const BEST_OF = 3;
 const ROUND_TIME = 90;
 const COUNTDOWN = 3;
@@ -32,8 +32,8 @@ const SEND_EVERY = 0.05;
 const POWERUP_INTERVAL = 12;
 const STEP = 1 / 60;
 // Red and green are kept out of the player palette so they only ever mean IT / survivor
-const COLORS = ['#3b82f6', '#f97316', '#a78bfa', '#facc15', '#ec4899', '#f1f5f9', '#22d3ee', '#b45309'];
-const BOT_NAMES = ['Shadow', 'Blitz', 'Phantom', 'Zippy', 'Dash', 'Bolt', 'Specter', 'Flash'];
+const COLORS = ['#3b82f6', '#f97316', '#a78bfa', '#facc15', '#ec4899', '#f1f5f9', '#22d3ee', '#b45309', '#2ec495', '#e0584f'];
+const BOT_NAMES = ['Shadow', 'Blitz', 'Phantom', 'Zippy', 'Dash', 'Bolt', 'Specter', 'Flash', 'Streak', 'Viper'];
 const POWERUP_INFO = {
     speed: { color: '#3b82f6', label: 'Speed boost' },
     freeze: { color: '#22d3ee', label: 'Freeze taggers' },

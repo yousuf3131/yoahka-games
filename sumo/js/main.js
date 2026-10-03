@@ -8,7 +8,7 @@ import * as gfx from './gfx.js?v=6';
 // Analytics: no-op until ../js/analytics.js loads, and always a no-op when testing locally
 const track = (name, params) => { if (window.track) window.track(name, params); };
 
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const BEST_OF = 5;
 const ROUND_TIME = 90;
 const PLATFORM_R = 20;
@@ -23,8 +23,8 @@ const PLAYER_R = 0.8;
 const MOVE_SPEED = 12;
 const ACCEL = 30;
 const FRICTION = 20;
-const COLORS = ['#e0584f', '#3b82f6', '#2ec495', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#e2e8f0'];
-const BOT_NAMES = ['Yokozuna', 'Thumper', 'Big Bump', 'Tiny Tank', 'Round Boy', 'Belly Flop', 'Iron Gut', 'Sumo Steve'];
+const COLORS = ['#e0584f', '#3b82f6', '#2ec495', '#f2c14e', '#a78bfa', '#f97316', '#ec4899', '#e2e8f0', '#22d3ee', '#b45309'];
+const BOT_NAMES = ['Yokozuna', 'Thumper', 'Big Bump', 'Tiny Tank', 'Round Boy', 'Belly Flop', 'Iron Gut', 'Sumo Steve', 'Slam King', 'Wide Load'];
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
