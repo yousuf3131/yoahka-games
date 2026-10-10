@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Verb Blast - Urdu Tense Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" defer></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh;width:100vw;user-select:none}
+        canvas{position:fixed;inset:0;z-index:0}
+
+        /* ── SCREENS ── */
+        .screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;background:rgba(15,23,42,0.96)}
+        .screen.active{display:flex}
+        .panel{background:#1e293b;border:2px solid #334155;padding:36px;width:90%;max-width:420px;text-align:center}
+        .logo{font-size:2.6em;font-weight:900;letter-spacing:-0.02em;line-height:1.1}
+        .logo span{color:#22c55e}
+        .tagline{color:#94a3b8;margin:6px 0 24px;font-size:0.85em}
+        label{display:block;text-align:left;font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px}
+        .field{width:100%;padding:10px 14px;background:#0f172a;border:2px solid #334155;color:#fff;font-family:inherit;font-size:1em;font-weight:600;outline:none;transition:border 0.15s}
+        .field:focus{border-color:#22c55e}
+        .field::placeholder{color:#475569}
+        .btn{font-family:inherit;font-weight:700;font-size:0.9em;padding:10px 20px;border:2px solid #334155;background:transparent;color:#e2e8f0;cursor:pointer;transition:all 0.15s}
+        .btn:hover{border-color:#22c55e;color:#fff}
+        .btn.primary{background:#22c55e;border-color:#22c55e;color:#0f172a}
+        .btn.primary:hover{background:#16a34a}
+        .btn.big{width:100%;padding:14px;font-size:1em}
+        .divider{color:#475569;font-size:0.7em;font-weight:700;letter-spacing:0.08em;margin:16px 0;display:flex;align-items:center;gap:12px}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:#334155}
+        .join-row{display:flex;gap:8px}
+        .join-row .field{text-align:center;letter-spacing:0.2em;text-transform:uppercase}
+        .status{color:#f59e0b;font-size:0.8em;margin-top:12px;min-height:1.2em}
+        .room-box{background:#0f172a;padding:14px;margin-bottom:14px}
+        .room-box small{color:#94a3b8;font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+        .room-code{font-size:2em;font-weight:900;letter-spacing:0.2em;color:#22c55e;margin:4px 0 8px}
+        .plist{list-style:none;margin:10px 0}
+        .plist li{padding:8px 12px;background:#0f172a;margin-bottom:4px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .plist .dot{width:10px;height:10px;flex-shrink:0}
+
+        /* ── HUD ── */
+        #hud{position:fixed;top:0;left:0;right:0;z-index:20;display:none}
+        .hud-top{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:rgba(15,23,42,0.85)}
+        .hud-lives{display:flex;gap:4px}
+        .heart{width:22px;height:22px;background:#ef4444;clip-path:path('M11 3C7 -1 0 1 0 7c0 6 11 13 11 13s11-7 11-13c0-6-7-8-11-4z');opacity:1;transition:opacity 0.3s}
+        .heart.lost{opacity:0.15}
+        .hud-score{font-size:1.3em;font-weight:900;color:#22c55e}
+        .hud-combo{font-size:0.75em;font-weight:700;color:#f59e0b;min-width:50px;text-align:right}
+        .hud-opponent{font-size:0.7em;color:#94a3b8;text-align:right}
+        .hud-opponent b{color:#3b82f6}
+
+        /* ── PROMPT ── */
+        #prompt{position:fixed;top:56px;left:0;right:0;z-index:15;text-align:center;padding:10px 16px;background:rgba(15,23,42,0.8);display:none;border-bottom:2px solid #334155}
+        .prompt-eng{font-size:0.85em;color:#94a3b8;margin-bottom:2px}
+        .prompt-ur{font-family:'Noto Nastaliq Urdu',serif;font-size:1.4em;font-weight:700;direction:rtl;line-height:2}
+        .prompt-blank{display:inline-block;border-bottom:2px solid #22c55e;min-width:80px}
+        .prompt-tense{display:inline-block;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.45em;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;background:#334155;color:#94a3b8;margin-left:8px;vertical-align:middle;direction:ltr}
+
+        /* ── FALLING CARDS ── */
+        #cards{position:fixed;inset:0;z-index:10;pointer-events:none}
+        .card{position:absolute;pointer-events:auto;cursor:pointer;padding:10px 18px;border:3px solid;font-family:'Noto Nastaliq Urdu',serif;font-size:1.25em;font-weight:700;direction:rtl;line-height:1.6;text-align:center;min-width:120px;transition:transform 0.1s;white-space:nowrap}
+        .card:hover{transform:scale(1.08)!important}
+        .card.c0{border-color:#22c55e;background:rgba(34,197,94,0.12);color:#86efac;box-shadow:0 0 20px rgba(34,197,94,0.15)}
+        .card.c1{border-color:#3b82f6;background:rgba(59,130,246,0.12);color:#93c5fd;box-shadow:0 0 20px rgba(59,130,246,0.15)}
+        .card.c2{border-color:#f59e0b;background:rgba(245,158,11,0.12);color:#fcd34d;box-shadow:0 0 20px rgba(245,158,11,0.15)}
+        .card.c3{border-color:#ec4899;background:rgba(236,72,153,0.12);color:#f9a8d4;box-shadow:0 0 20px rgba(236,72,153,0.15)}
+        .card.hit{animation:blast 0.35s ease forwards}
+        .card.miss{animation:miss-shake 0.4s ease;border-color:#ef4444!important;background:rgba(239,68,68,0.25)!important;color:#fca5a5!important}
+        @keyframes blast{0%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.6}100%{transform:scale(0);opacity:0}}
+        @keyframes miss-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+        /* ── CENTER MESSAGES ── */
+        .big-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;font-size:4em;font-weight:900;pointer-events:none;animation:pop-msg 0.8s ease forwards}
+        .big-msg.go{color:#22c55e}
+        .big-msg.num{color:#fff}
+        .big-msg.streak{color:#f59e0b;font-size:2.5em}
+        @keyframes pop-msg{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}40%{transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-60%) scale(1)}}
+
+        /* ── RESULTS ── */
+        .res-title{font-size:2em;font-weight:900;margin-bottom:6px}
+        .res-title.win{color:#22c55e}
+        .res-title.lose{color:#ef4444}
+        .res-sub{color:#94a3b8;margin-bottom:16px}
+        .res-stats{text-align:left;margin-bottom:20px}
+        .res-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #334155;font-size:0.85em}
+        .res-btns{display:flex;gap:8px;justify-content:center}
+        .back-link{position:fixed;top:12px;left:12px;color:#94a3b8;text-decoration:none;font-weight:600;font-size:0.8em;z-index:60}
+        .back-link:hover{color:#fff}
+
+        @media(max-width:500px){
+            .logo{font-size:2em}
+            .panel{padding:24px 18px}
+            .prompt-ur{font-size:1.15em}
+            .card{font-size:1.05em;padding:8px 14px;min-width:100px}
+        }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a href="/" class="back-link">&larr; Yoahka Games</a>
+
+<!-- ═══ MENU ═══ -->
+<div id="menu" class="screen active">
+    <div class="panel">
+        <div class="logo">VERB<span>BLAST</span></div>
+        <p class="tagline">Blast the correct verb form before it reaches the bottom!</p>
+        <div style="margin-bottom:14px">
+            <label for="inp-name">Your name</label>
+            <input class="field" id="inp-name" maxlength="14" autocomplete="nickname" placeholder="e.g. Ali">
+        </div>
+        <button class="btn primary big" id="btn-solo">Play Solo</button>
+        <div class="divider">OR PLAY WITH A FRIEND</div>
+        <button class="btn big" id="btn-create" style="margin-bottom:8px">Create Room</button>
+        <div class="join-row">
+            <input class="field" id="inp-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+            <button class="btn" id="btn-join">Join</button>
+        </div>
+        <div class="status" id="menu-status"></div>
+    </div>
+</div>
+
+<!-- ═══ LOBBY ═══ -->
+<div id="lobby" class="screen">
+    <div class="panel">
+        <div class="room-box">
+            <small>Room Code</small>
+            <div class="room-code" id="lobby-code">-----</div>
+            <button class="btn" id="btn-copy">Copy Code</button>
+        </div>
+        <div style="font-weight:700;margin-bottom:6px">Players</div>
+        <ul class="plist" id="plist"></ul>
+        <button class="btn primary big" id="btn-start" style="display:none;margin-top:10px">Start Game</button>
+        <div class="status" id="lobby-status">Waiting for opponent...</div>
+    </div>
+</div>
+
+<!-- ═══ HUD ═══ -->
+<div id="hud">
+    <div class="hud-top">
+        <div class="hud-lives" id="lives"></div>
+        <div style="text-align:center">
+            <div class="hud-score" id="score-val">0</div>
+        </div>
+        <div>
+            <div class="hud-combo" id="combo-val"></div>
+            <div class="hud-opponent" id="op-score"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ PROMPT ═══ -->
+<div id="prompt">
+    <div class="prompt-eng" id="p-eng"></div>
+    <div class="prompt-ur" id="p-ur"></div>
+</div>
+
+<!-- ═══ CARDS ═══ -->
+<div id="cards"></div>
+
+<!-- ═══ RESULTS ═══ -->
+<div id="results" class="screen">
+    <div class="panel">
+        <div class="res-title" id="res-title">Game Over</div>
+        <div class="res-sub" id="res-sub"></div>
+        <div class="res-stats" id="res-stats"></div>
+        <div class="res-btns">
+            <button class="btn primary" id="btn-again">Play Again</button>
+            <button class="btn" id="btn-menu">Menu</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUDIO
+// ═══════════════════════════════════════════════════════════════
+const AudioCtx=window.AudioContext||window.webkitAudioContext;
+let actx;
+function initAudio(){if(!actx)try{actx=new AudioCtx()}catch(e){}}
+function tone(f,d,t,v){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v||0.1,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+d);o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}
+function sndHit(){tone(660,0.06);setTimeout(()=>tone(880,0.08),50);setTimeout(()=>tone(1100,0.1),100)}
+function sndMiss(){tone(180,0.25,'square',0.06)}
+function sndDmg(){tone(120,0.3,'sawtooth',0.08)}
+function sndCount(){tone(440,0.12,'sine',0.08)}
+function sndGo(){tone(880,0.2,'sine',0.12)}
+function sndStreak(){tone(523,0.06);setTimeout(()=>tone(659,0.06),50);setTimeout(()=>tone(784,0.06),100);setTimeout(()=>tone(1047,0.1),150)}
+function sndWin(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.15,'sine',0.1),i*100))}
+
+// ═══════════════════════════════════════════════════════════════
+//  NETWORKING (from Yoahka pattern)
+// ═══════════════════════════════════════════════════════════════
+const NET_PREFIX='urdu-vb-';
+const CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const RELAYS=['wss://broker.emqx.io:8084/mqtt','wss://test.mosquitto.org:8081/mqtt'];
+const ICE_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]};
+const mkCode=()=>Array.from({length:5},()=>CHARS[Math.floor(Math.random()*CHARS.length)]).join('');
+const topicRoot=c=>`urdu-vb/v1/${c}`;
+const rndId=()=>'r'+Math.random().toString(36).slice(2,12);
+function loadMqtt(){if(window.mqtt)return Promise.resolve(true);return new Promise(r=>{let n=0;const iv=setInterval(()=>{if(window.mqtt||++n>40){clearInterval(iv);r(!!window.mqtt)}},200)})}
+function relayConn(url){return new Promise((res,rej)=>{const c=window.mqtt.connect(url,{connectTimeout:6000,reconnectPeriod:2000,clean:true,clientId:`vb_${Math.random().toString(16).slice(2,12)}`});c.on('error',()=>{});const t=setTimeout(()=>{c.end(true);rej()},7000);c.once('connect',()=>{clearTimeout(t);res(c)})})}
+function parse(b){try{return JSON.parse(b.toString())}catch(e){return null}}
+
+class HostNet{
+    constructor(cb){this.cb=cb;this.conn=null;this.relayPeer=null;this.relays=[];}
+    open(code){return new Promise((res,rej)=>{if(!window.Peer)return rej(new Error('PeerJS not loaded'));const p=new window.Peer(NET_PREFIX+code,{debug:0,config:ICE_CFG});this.peer=p;const t=setTimeout(()=>rej(new Error('timeout')),12000);p.on('open',()=>{clearTimeout(t);this.startRelays(code);res()});p.on('error',e=>{clearTimeout(t);rej(new Error(e.type==='unavailable-id'?'code-taken':e.type))});p.on('connection',c=>{c.on('open',()=>{this.conn=c;this.cb({t:'join'})});c.on('data',d=>this.cb(d));const g=()=>{if(this.conn===c){this.conn=null;this.cb({t:'leave'})}};c.on('close',g);c.on('error',g)});p.on('disconnected',()=>{try{if(!p.destroyed)p.reconnect()}catch(e){}})})}
+    async startRelays(code){this.root=topicRoot(code);if(!(await loadMqtt()))return;for(const url of RELAYS){relayConn(url).then(client=>{if(this.closed)return client.end(true);this.relays.push(client);client.subscribe(`${this.root}/h`,{qos:1});client.on('message',(_,buf)=>{const env=parse(buf);if(!env||!env.f||!env.m)return;if(this.conn)return;if(env.m.t==='bye'){if(this.relayPeer===env.f){this.relayPeer=null;this.cb({t:'leave'})}return}if(!this.relayPeer){if(env.m.t!=='hello')return;this.relayPeer=env.f}if(env.m.t!=='ping')this.cb(env.m)})}).catch(()=>{})}}
+    send(msg){if(this.conn&&this.conn.open)this.conn.send(msg);else if(this.relayPeer&&this.relays.length){const p=JSON.stringify(msg);this.relays.forEach(c=>c.publish(`${this.root}/all`,p,{qos:1}))}}
+    close(){this.closed=true;if(this.relayPeer&&this.relays.length){const p=JSON.stringify({t:'closed'});this.relays.forEach(c=>c.publish(`${this.root}/all`,p,{qos:1}))}const rs=this.relays;setTimeout(()=>rs.forEach(c=>c.end(true)),300);if(this.peer)this.peer.destroy();this.conn=null}
+}
+class ClientNet{
+    constructor(cb){this.cb=cb}
+    async connect(code){this.root=topicRoot(code);try{return await this.connectDirect(code)}catch(e){if(e.definitive)throw e}return this.connectRelay()}
+    connectDirect(code){return new Promise((res,rej)=>{if(!window.Peer)return rej(new Error('no peer'));const p=new window.Peer({debug:0,config:ICE_CFG});this.peer=p;let done=false;const fail=(m,def)=>{if(done)return;done=true;clearTimeout(t);const e=new Error(m);e.definitive=!!def;rej(e)};const t=setTimeout(()=>fail('timeout'),12000);p.on('open',id=>{this.id=id;const c=p.connect(NET_PREFIX+code,{reliable:true,serialization:'json'});c.on('open',()=>{if(done)return c.close();done=true;clearTimeout(t);this.conn=c;this.mode='direct';res(id)});c.on('data',d=>this.cb(d));c.on('close',()=>{if(this.conn===c&&!this.closing)this.cb({t:'closed'})});setTimeout(()=>fail('slow'),8000)});p.on('error',e=>{if(e.type==='peer-unavailable')fail('No room found.',true);else fail(e.type)})})}
+    async connectRelay(){if(this.peer){try{this.peer.destroy()}catch(e){}this.peer=null}if(!this.id)this.id=rndId();if(!(await loadMqtt()))throw new Error('Cannot connect');for(const url of RELAYS){let client;try{client=await relayConn(url);await new Promise((r,j)=>client.subscribe([`${this.root}/c/${this.id}`,`${this.root}/all`],{qos:1},e=>(e?j(e):r())))}catch(e){if(client)client.end(true);continue}this.relay=client;this.mode='relay';this.lastHeard=Date.now();client.on('message',(_,buf)=>{const m=parse(buf);if(!m)return;this.lastHeard=Date.now();if(m.t==='hb')return;if(m.t==='closed'){if(!this.closing)this.cb({t:'closed'});return}this.cb(m)});this.pingTimer=setInterval(()=>{this.publish({t:'ping'},0);if(Date.now()-this.lastHeard>15000&&!this.closing){clearInterval(this.pingTimer);this.cb({t:'closed'})}},3000);return this.id}throw new Error('Cannot connect')}
+    publish(msg,qos){this.relay.publish(`${this.root}/h`,JSON.stringify({f:this.id,m:msg}),{qos})}
+    send(msg){if(this.mode==='direct'){if(this.conn&&this.conn.open)this.conn.send(msg)}else if(this.mode==='relay')this.publish(msg,1)}
+    close(){this.closing=true;clearInterval(this.pingTimer);if(this.relay){try{this.publish({t:'bye'},0)}catch(e){}const r=this.relay;setTimeout(()=>r.end(true),300)}if(this.peer)this.peer.destroy()}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  VERB DATA & QUESTIONS
+// ═══════════════════════════════════════════════════════════════
+const V={
+    eat:{hab:['کھاتا ہے','کھاتی ہے','کھاتے ہیں'],cont:['کھا رہا ہے','کھا رہی ہے','کھا رہے ہیں'],fut:['کھائے گا','کھائے گی','کھائیں گے'],past:['کھایا','کھائی','کھائے'],comp:['کھا لیا','کھا لی','کھا لیے']},
+    write:{hab:['لکھتا ہے','لکھتی ہے','لکھتے ہیں'],cont:['لکھ رہا ہے','لکھ رہی ہے','لکھ رہے ہیں'],fut:['لکھے گا','لکھے گی','لکھیں گے'],past:['لکھا','لکھی','لکھے'],comp:['لکھ لیا','لکھ لی','لکھ لیے']},
+    read:{hab:['پڑھتا ہے','پڑھتی ہے','پڑھتے ہیں'],cont:['پڑھ رہا ہے','پڑھ رہی ہے','پڑھ رہے ہیں'],fut:['پڑھے گا','پڑھے گی','پڑھیں گے'],past:['پڑھا','پڑھی','پڑھے'],comp:['پڑھ لیا','پڑھ لی','پڑھ لیے']},
+    drink:{hab:['پیتا ہے','پیتی ہے','پیتے ہیں'],cont:['پی رہا ہے','پی رہی ہے','پی رہے ہیں'],fut:['پیے گا','پیے گی','پیئیں گے'],past:['پیا','پی','پیے'],comp:['پی لیا','پی لی','پی لیے']},
+    run:{hab:['دوڑتا ہے','دوڑتی ہے','دوڑتے ہیں'],cont:['دوڑ رہا ہے','دوڑ رہی ہے','دوڑ رہے ہیں'],fut:['دوڑے گا','دوڑے گی','دوڑیں گے'],past:['دوڑا','دوڑی','دوڑے']},
+    sleep:{hab:['سوتا ہے','سوتی ہے','سوتے ہیں'],cont:['سو رہا ہے','سو رہی ہے','سو رہے ہیں'],fut:['سوئے گا','سوئے گی','سوئیں گے'],past:['سویا','سوئی','سوئے']},
+    understand:{hab:['سمجھتا ہے','سمجھتی ہے','سمجھتے ہیں'],cont:['سمجھ رہا ہے','سمجھ رہی ہے','سمجھ رہے ہیں'],fut:['سمجھے گا','سمجھے گی','سمجھیں گے'],past:['سمجھا','سمجھی','سمجھے'],comp:['سمجھ لیا','سمجھ لی','سمجھ لیے']},
+    buy:{hab:['خریدتا ہے','خریدتی ہے','خریدتے ہیں'],cont:['خرید رہا ہے','خرید رہی ہے','خرید رہے ہیں'],fut:['خریدے گا','خریدے گی','خریدیں گے'],past:['خریدا','خریدی','خریدے'],comp:['خرید لیا','خرید لی','خرید لیے']},
+    go:{hab:['جاتا ہے','جاتی ہے','جاتے ہیں'],cont:['جا رہا ہے','جا رہی ہے','جا رہے ہیں'],fut:['جائے گا','جائے گی','جائیں گے'],past:['گیا','گئی','گئے']},
+    come:{hab:['آتا ہے','آتی ہے','آتے ہیں'],cont:['آ رہا ہے','آ رہی ہے','آ رہے ہیں'],fut:['آئے گا','آئے گی','آئیں گے'],past:['آیا','آئی','آئے']},
+    cook:{hab:['پکاتا ہے','پکاتی ہے','پکاتے ہیں'],cont:['پکا رہا ہے','پکا رہی ہے','پکا رہے ہیں'],fut:['پکائے گا','پکائے گی','پکائیں گے'],past:['پکایا','پکائی','پکائے'],comp:['پکا لیا','پکا لی','پکا لیے']},
+    wash:{hab:['دھوتا ہے','دھوتی ہے','دھوتے ہیں'],cont:['دھو رہا ہے','دھو رہی ہے','دھو رہے ہیں'],fut:['دھوئے گا','دھوئے گی','دھوئیں گے'],past:['دھویا','دھوئی','دھوئے'],comp:['دھو لیا','دھو لی','دھو لیے']},
+};
+
+const TENSE_LABELS={hab:'Habitual',cont:'Continuous',fut:'Future',past:'Simple Past',comp:'Compound'};
+const ALL_Q=[
+    {s:'لڑکا روز کھانا ___۔',e:'The boy eats food daily.',c:'کھاتا ہے',v:'eat',t:'hab'},
+    {s:'لڑکی ہمیشہ کتاب ___۔',e:'The girl always reads.',c:'پڑھتی ہے',v:'read',t:'hab'},
+    {s:'بچے روز باہر ___۔',e:'The children run outside daily.',c:'دوڑتے ہیں',v:'run',t:'hab'},
+    {s:'وہ (M) ہمیشہ سبق ___۔',e:'He always understands.',c:'سمجھتا ہے',v:'understand',t:'hab'},
+    {s:'وہ (F) روز چائے ___۔',e:'She drinks tea daily.',c:'پیتی ہے',v:'drink',t:'hab'},
+    {s:'لڑکا ہمیشہ ___۔',e:'The boy always runs.',c:'دوڑتا ہے',v:'run',t:'hab'},
+    {s:'لڑکی روز جلدی ___۔',e:'The girl sleeps early daily.',c:'سوتی ہے',v:'sleep',t:'hab'},
+    {s:'بچے روز خط ___۔',e:'The children write daily.',c:'لکھتے ہیں',v:'write',t:'hab'},
+    {s:'وہ (M) روز سبزی ___۔',e:'He buys vegetables daily.',c:'خریدتا ہے',v:'buy',t:'hab'},
+    {s:'لڑکی ہمیشہ کھانا ___۔',e:'The girl always cooks.',c:'پکاتی ہے',v:'cook',t:'hab'},
+    {s:'لڑکا ابھی کھانا ___۔',e:'The boy is eating now.',c:'کھا رہا ہے',v:'eat',t:'cont'},
+    {s:'لڑکی ابھی کتاب ___۔',e:'The girl is reading now.',c:'پڑھ رہی ہے',v:'read',t:'cont'},
+    {s:'بچے ابھی باہر ___۔',e:'The children are running now.',c:'دوڑ رہے ہیں',v:'run',t:'cont'},
+    {s:'وہ (M) ابھی خط ___۔',e:'He is writing now.',c:'لکھ رہا ہے',v:'write',t:'cont'},
+    {s:'وہ (F) ابھی چائے ___۔',e:'She is drinking tea now.',c:'پی رہی ہے',v:'drink',t:'cont'},
+    {s:'لڑکا ابھی ___۔',e:'The boy is sleeping now.',c:'سو رہا ہے',v:'sleep',t:'cont'},
+    {s:'لڑکی ابھی کھانا ___۔',e:'The girl is cooking now.',c:'پکا رہی ہے',v:'cook',t:'cont'},
+    {s:'لڑکا ابھی سکول ___۔',e:'The boy is going to school.',c:'جا رہا ہے',v:'go',t:'cont'},
+    {s:'لڑکا کل کھانا ___۔',e:'The boy will eat tomorrow.',c:'کھائے گا',v:'eat',t:'fut'},
+    {s:'لڑکی کل کتاب ___۔',e:'The girl will read tomorrow.',c:'پڑھے گی',v:'read',t:'fut'},
+    {s:'بچے کل باہر ___۔',e:'The children will run tomorrow.',c:'دوڑیں گے',v:'run',t:'fut'},
+    {s:'وہ (M) کل خط ___۔',e:'He will write tomorrow.',c:'لکھے گا',v:'write',t:'fut'},
+    {s:'وہ (F) کل چائے ___۔',e:'She will drink tea tomorrow.',c:'پیے گی',v:'drink',t:'fut'},
+    {s:'لڑکا کل جلدی ___۔',e:'The boy will sleep early.',c:'سوئے گا',v:'sleep',t:'fut'},
+    {s:'لڑکی کل کھانا ___۔',e:'The girl will cook tomorrow.',c:'پکائے گی',v:'cook',t:'fut'},
+    {s:'وہ (M) کل سکول ___۔',e:'He will go to school.',c:'جائے گا',v:'go',t:'fut'},
+    {s:'وہ (F) کل گھر ___۔',e:'She will come home.',c:'آئے گی',v:'come',t:'fut'},
+    {s:'لڑکے نے کھانا ___۔',e:'The boy ate food.',c:'کھایا',v:'eat',t:'past'},
+    {s:'لڑکی نے کتاب ___۔',e:'The girl read the book.',c:'پڑھی',v:'read',t:'past'},
+    {s:'اس نے خط ___۔',e:'He/she wrote a letter.',c:'لکھا',v:'write',t:'past'},
+    {s:'لڑکا سکول ___۔',e:'The boy went to school.',c:'گیا',v:'go',t:'past'},
+    {s:'لڑکی گھر ___۔',e:'The girl came home.',c:'آئی',v:'come',t:'past'},
+    {s:'بچے باہر ___۔',e:'The children ran outside.',c:'دوڑے',v:'run',t:'past'},
+    {s:'وہ (F) جلدی ___۔',e:'She slept early.',c:'سوئی',v:'sleep',t:'past'},
+    {s:'تم نے سبق ___۔',e:'You understood the lesson.',c:'سمجھا',v:'understand',t:'past'},
+    {s:'لڑکی نے کھانا ___۔',e:'The girl cooked food.',c:'پکایا',v:'cook',t:'past'},
+    {s:'میں نے کھانا ___۔',e:'I finished eating.',c:'کھا لیا',v:'eat',t:'comp'},
+    {s:'اس نے کتاب ___۔',e:'He finished reading.',c:'پڑھ لی',v:'read',t:'comp'},
+    {s:'لڑکی نے خط ___۔',e:'She finished writing.',c:'لکھ لیا',v:'write',t:'comp'},
+    {s:'ہم نے چائے ___۔',e:'We finished drinking tea.',c:'پی لی',v:'drink',t:'comp'},
+    {s:'تم نے سبق ___۔',e:'You fully understood.',c:'سمجھ لیا',v:'understand',t:'comp'},
+    {s:'انہوں نے کپڑے ___۔',e:'They finished washing.',c:'دھو لیے',v:'wash',t:'comp'},
+    {s:'لڑکے نے کھانا ___۔',e:'The boy finished cooking.',c:'پکا لیا',v:'cook',t:'comp'},
+    {s:'میں نے روٹی ___۔',e:'I finished eating bread.',c:'کھا لی',v:'eat',t:'comp'},
+];
+
+function getDistractors(vk,correct,n){
+    const v=V[vk];if(!v)return[];const all=[];
+    for(const t of['hab','cont','fut','past','comp']){if(!v[t])continue;for(const f of v[t])if(f!==correct&&all.indexOf(f)<0)all.push(f)}
+    return shuffle(all).slice(0,n);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CANVAS — background effects
+// ═══════════════════════════════════════════════════════════════
+const cvs=$('c'), ctx=cvs.getContext('2d');
+let W,H;
+function resize(){W=cvs.width=innerWidth;H=cvs.height=innerHeight}
+resize(); addEventListener('resize',resize);
+
+const bgStars=Array.from({length:100},()=>({x:Math.random(),y:Math.random(),s:0.5+Math.random()*2,b:0.2+Math.random()*0.8,sp:0.5+Math.random()*2}));
+let particles=[];
+let shakeAmt=0;
+
+function spawnParticles(x,y,color,n){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-0.5)*300,vy:(Math.random()-0.5)*300-100,life:0.4+Math.random()*0.4,color,r:2+Math.random()*4})}
+function spawnDmgParticles(){for(let i=0;i<20;i++)particles.push({x:Math.random()*W,y:Math.random()*H,vx:0,vy:0,life:0.3+Math.random()*0.2,color:'#ef4444',r:3+Math.random()*6})}
+
+function drawBg(dt){
+    ctx.save();
+    if(shakeAmt>0){ctx.translate((Math.random()-0.5)*shakeAmt*15,(Math.random()-0.5)*shakeAmt*15);shakeAmt=Math.max(0,shakeAmt-dt*3)}
+    const sky=ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#0f172a');sky.addColorStop(0.6,'#1e1b4b');sky.addColorStop(1,'#0f172a');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+    const now=Date.now();
+    bgStars.forEach(s=>{
+        ctx.globalAlpha=s.b*(0.4+0.6*Math.sin(now*0.002*s.sp+s.x*100));
+        ctx.fillStyle='#e2e8f0';
+        ctx.fillRect(s.x*W,s.y*H,s.s,s.s);
+    });
+    ctx.globalAlpha=1;
+    // danger zone at bottom
+    if(game&&game.started){
+        const grad=ctx.createLinearGradient(0,H-60,0,H);
+        grad.addColorStop(0,'transparent');grad.addColorStop(1,'rgba(239,68,68,0.08)');
+        ctx.fillStyle=grad;ctx.fillRect(0,H-60,W,60);
+        ctx.strokeStyle='rgba(239,68,68,0.2)';ctx.lineWidth=1;
+        ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(0,H-4);ctx.lineTo(W,H-4);ctx.stroke();ctx.setLineDash([]);
+    }
+    // particles
+    particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=400*dt;p.life-=dt;if(p.life>0){ctx.globalAlpha=Math.min(1,p.life*3);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r*Math.min(1,p.life*2),0,Math.PI*2);ctx.fill()}});
+    ctx.globalAlpha=1;
+    particles=particles.filter(p=>p.life>0);
+    ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════════════
+let net=null,isHost=false,isSolo=false,myName='',opName='',roomCode='';
+let game=null;
+const MAX_LIVES=3, CARD_COLORS=['c0','c1','c2','c3'];
+const BASE_FALL_SPEED=70, SPEED_INC=4;
+
+function newGame(questions){
+    return{
+        started:false, lives:MAX_LIVES, score:0, combo:0, bestCombo:0,
+        questions:questions, qi:0,
+        cards:[], cardsDone:false,
+        fallSpeed:BASE_FALL_SPEED, waveDelay:0, over:false,
+        opScore:0, opLives:MAX_LIVES,
+        correct:0, wrong:0,
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CARD SYSTEM
+// ═══════════════════════════════════════════════════════════════
+function spawnWave(){
+    const g=game;if(!g||g.qi>=g.questions.length)return;
+    const q=g.questions[g.qi];
+    const distractors=getDistractors(q.v,q.c,3);
+    const opts=shuffle([q.c,...distractors]);
+    const colors=shuffle(CARD_COLORS.slice());
+
+    // show prompt
+    $('p-eng').textContent=q.e;
+    $('p-ur').innerHTML=q.s.replace('___','<span class="prompt-blank"></span>')+
+        '<span class="prompt-tense">'+TENSE_LABELS[q.t]+'</span>';
+
+    const container=$('cards');
+    const colW=W/4;
+    opts.forEach((text,i)=>{
+        const el=document.createElement('div');
+        el.className='card '+colors[i];
+        el.textContent=text;
+        container.appendChild(el);
+        const cardW=el.offsetWidth;
+        const x=colW*i+(colW-cardW)/2;
+        const card={el,text,x,y:-60-i*50,correct:text===q.c,dead:false};
+        el.style.left=x+'px';
+        el.style.top=card.y+'px';
+        el.addEventListener('click',()=>onCardTap(card));
+        el.addEventListener('touchend',e=>{e.preventDefault();onCardTap(card)});
+        g.cards.push(card);
+    });
+}
+
+function onCardTap(card){
+    if(!game||game.over||card.dead)return;
+    card.dead=true;
+    const q=game.questions[game.qi];
+    if(card.correct){
+        card.el.classList.add('hit');
+        game.score+=10*(1+Math.floor(game.combo/3));
+        game.combo++;
+        game.correct++;
+        if(game.combo>game.bestCombo)game.bestCombo=game.combo;
+        sndHit();
+        const r=card.el.getBoundingClientRect();
+        spawnParticles(r.left+r.width/2,r.top+r.height/2,'#22c55e',20);
+        if(game.combo===5){showBigMsg('COMBO x5!','streak');sndStreak()}
+        else if(game.combo===10){showBigMsg('UNSTOPPABLE!','streak');sndStreak()}
+        clearWave();
+        game.qi++;
+        game.fallSpeed=BASE_FALL_SPEED+game.qi*SPEED_INC;
+        game.waveDelay=0.8;
+        sendScore();
+    }else{
+        card.el.classList.add('miss');
+        game.combo=0;
+        game.wrong++;
+        sndMiss();
+    }
+}
+
+function clearWave(){
+    game.cards.forEach(c=>{if(!c.dead){c.dead=true;c.el.style.transition='opacity 0.3s';c.el.style.opacity='0'}});
+    setTimeout(()=>{$('cards').innerHTML='';if(game)game.cards=[]},350);
+}
+
+function cardMissed(){
+    if(!game||game.over)return;
+    game.lives--;
+    game.combo=0;
+    sndDmg();
+    shakeAmt=1;
+    spawnDmgParticles();
+    clearWave();
+    game.qi++;
+    game.fallSpeed=BASE_FALL_SPEED+game.qi*SPEED_INC;
+    game.waveDelay=0.8;
+    sendScore();
+    if(game.lives<=0)endGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════════════════════
+function updateHUD(){
+    if(!game)return;
+    let h='';for(let i=0;i<MAX_LIVES;i++)h+=`<div class="heart${i>=game.lives?' lost':''}"></div>`;
+    $('lives').innerHTML=h;
+    $('score-val').textContent=game.score;
+    $('combo-val').textContent=game.combo>1?game.combo+'x combo':'';
+    if(!isSolo)$('op-score').innerHTML=`<b>${opName}</b>: ${game.opScore}`;
+    else $('op-score').textContent='';
+}
+
+function showBigMsg(text,cls){
+    const el=document.createElement('div');
+    el.className='big-msg '+cls;el.textContent=text;
+    document.body.appendChild(el);setTimeout(()=>el.remove(),900);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════════════════════
+let lastT=0, countdownT=0, countdownPhase=0;
+
+function loop(ts){
+    const dt=Math.min((ts-lastT)/1000,0.06);lastT=ts;
+    drawBg(dt);
+    if(game&&game.started&&!game.over){
+        // countdown
+        if(countdownT>0){
+            countdownT-=dt;
+            const n=Math.ceil(countdownT);
+            if(n!==countdownPhase&&n>0){countdownPhase=n;showBigMsg(n.toString(),'num');sndCount()}
+            if(countdownT<=0){showBigMsg('GO!','go');sndGo();game.waveDelay=0.6}
+        }else{
+            // wave management
+            if(game.cards.length===0&&!game.over){
+                game.waveDelay-=dt;
+                if(game.waveDelay<=0){
+                    if(game.qi>=game.questions.length){
+                        endGame();
+                    }else{
+                        spawnWave();
+                    }
+                }
+            }
+            // move cards
+            let correctReachedBottom=false;
+            game.cards.forEach(c=>{
+                if(c.dead)return;
+                c.y+=game.fallSpeed*dt;
+                c.el.style.top=c.y+'px';
+                if(c.y>H+10){
+                    if(c.correct)correctReachedBottom=true;
+                    c.dead=true;
+                }
+            });
+            if(correctReachedBottom)cardMissed();
+        }
+        updateHUD();
+    }
+    requestAnimationFrame(loop);
+}
+
+function startGameplay(questions){
+    game=newGame(questions);
+    game.started=true;
+    showScreen(null);
+    $('hud').style.display='block';
+    $('prompt').style.display='block';
+    $('cards').innerHTML='';
+    countdownT=3.5;countdownPhase=4;
+    updateHUD();
+}
+
+function endGame(){
+    if(!game)return;
+    game.over=true;
+    $('cards').innerHTML='';$('prompt').style.display='none';
+    sendScore();
+
+    setTimeout(()=>{
+        $('hud').style.display='none';
+        let title,cls;
+        if(!isSolo&&game.opLives<=0){
+            title=game.score>=game.opScore?'You Win!':'You Lose!';
+            cls=game.score>=game.opScore?'win':'lose';
+            if(cls==='win')sndWin();
+        }else if(!isSolo){
+            title=game.score>game.opScore?'You Win!':'Game Over';
+            cls=game.score>game.opScore?'win':'lose';
+            if(cls==='win')sndWin();
+        }else{
+            title='Game Over';cls='win';
+        }
+        $('res-title').textContent=title;
+        $('res-title').className='res-title '+cls;
+        $('res-sub').textContent='Score: '+game.score;
+        let stats=`
+            <div class="res-row"><span>Correct</span><span style="color:#22c55e">${game.correct}</span></div>
+            <div class="res-row"><span>Wrong taps</span><span style="color:#ef4444">${game.wrong}</span></div>
+            <div class="res-row"><span>Best combo</span><span style="color:#f59e0b">${game.bestCombo}x</span></div>`;
+        if(!isSolo)stats+=`<div class="res-row"><span>${opName}'s score</span><span style="color:#3b82f6">${game.opScore}</span></div>`;
+        $('res-stats').innerHTML=stats;
+        showScreen('results');
+    },1000);
+}
+
+function sendScore(){
+    if(!net||!game||isSolo)return;
+    net.send({t:'score',s:game.score,l:game.lives,c:game.combo});
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NETWORKING HANDLERS
+// ═══════════════════════════════════════════════════════════════
+function hostMsg(msg){
+    if(!msg||!msg.t)return;
+    switch(msg.t){
+        case'join':break;
+        case'hello':opName=msg.name||'Player 2';renderLobby();$('btn-start').style.display='block';$('lobby-status').textContent=opName+' joined!';break;
+        case'leave':opName='';renderLobby();$('btn-start').style.display='none';$('lobby-status').textContent='Opponent left.';break;
+        case'score':if(game){game.opScore=msg.s;game.opLives=msg.l}break;
+        case'want-rematch':doStart();break;
+    }
+}
+function clientMsg(msg){
+    if(!msg||!msg.t)return;
+    switch(msg.t){
+        case'welcome':opName=msg.name||'Host';renderLobby();break;
+        case'go':opName=msg.name||opName;startGameplay(msg.q);break;
+        case'score':if(game){game.opScore=msg.s;game.opLives=msg.l}break;
+        case'closed':if(game){game.over=true;endGame()}showScreen('menu');$('menu-status').textContent='Opponent disconnected.';break;
+    }
+}
+function renderLobby(){
+    const l=$('plist');l.innerHTML='';
+    const add=(n,c)=>{const li=document.createElement('li');li.innerHTML=`<span class="dot" style="background:${c}"></span>${n}`;l.appendChild(li)};
+    add(myName,'#22c55e');if(opName)add(opName,'#3b82f6');
+}
+function doStart(){
+    const q=shuffle(ALL_Q).slice(0,20);
+    net.send({t:'go',q,name:myName});
+    startGameplay(q);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SCREEN / MENU
+// ═══════════════════════════════════════════════════════════════
+function showScreen(id){['menu','lobby','results'].forEach(s=>$(s).classList.remove('active'));if(id)$(id).classList.add('active')}
+
+$('btn-solo').addEventListener('click',()=>{
+    initAudio();isSolo=true;myName=$('inp-name').value.trim()||'Player';
+    startGameplay(shuffle(ALL_Q).slice(0,20));
+});
+
+$('btn-create').addEventListener('click',async()=>{
+    initAudio();myName=$('inp-name').value.trim()||'Player 1';
+    roomCode=mkCode();$('menu-status').textContent='Creating room...';
+    try{isHost=true;isSolo=false;net=new HostNet(hostMsg);await net.open(roomCode);
+        $('lobby-code').textContent=roomCode;$('btn-start').style.display='none';
+        $('lobby-status').textContent='Waiting for opponent...';renderLobby();showScreen('lobby');
+    }catch(e){$('menu-status').textContent=e.message==='code-taken'?'Code taken, retrying...':'Connection failed.';
+        if(e.message==='code-taken'){roomCode=mkCode();$('btn-create').click()}}
+});
+
+$('btn-join').addEventListener('click',async()=>{
+    initAudio();myName=$('inp-name').value.trim()||'Player 2';
+    const code=$('inp-code').value.trim().toUpperCase();
+    if(code.length<3){$('menu-status').textContent='Enter the room code.';return}
+    $('menu-status').textContent='Joining...';
+    try{isHost=false;isSolo=false;net=new ClientNet(clientMsg);await net.connect(code);roomCode=code;
+        $('lobby-code').textContent=code;$('lobby-status').textContent='Waiting for host to start...';
+        renderLobby();showScreen('lobby');net.send({t:'hello',name:myName});
+    }catch(e){$('menu-status').textContent=e.message||'Room not found.'}
+});
+
+$('btn-copy').addEventListener('click',()=>{
+    navigator.clipboard.writeText(roomCode).then(()=>{$('btn-copy').textContent='Copied!';setTimeout(()=>$('btn-copy').textContent='Copy Code',1500)});
+});
+$('btn-start').addEventListener('click',()=>{if(opName)doStart()});
+$('btn-again').addEventListener('click',()=>{
+    if(isSolo){startGameplay(shuffle(ALL_Q).slice(0,20))}
+    else if(isHost){doStart()}
+    else{net.send({t:'want-rematch'});$('res-title').textContent='Waiting...'}
+});
+$('btn-menu').addEventListener('click',()=>{
+    if(net){net.close();net=null}game=null;$('hud').style.display='none';$('prompt').style.display='none';
+    $('cards').innerHTML='';showScreen('menu');$('menu-status').textContent='';
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
