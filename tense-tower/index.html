@@ -120,6 +120,18 @@
             <label for="inp-name">Your name</label>
             <input class="field" id="inp-name" maxlength="14" autocomplete="nickname" placeholder="e.g. Ali">
         </div>
+        <div style="margin-bottom:14px">
+            <label>Difficulty</label>
+            <div style="display:flex;gap:6px">
+                <button class="btn diff-btn" data-diff="easy" style="flex:1;padding:8px">Easy</button>
+                <button class="btn diff-btn active" data-diff="normal" style="flex:1;padding:8px;border-color:#f59e0b;color:#fff">Normal</button>
+                <button class="btn diff-btn" data-diff="hard" style="flex:1;padding:8px">Hard</button>
+            </div>
+        </div>
+        <div style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="no-timer" style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer">
+            <label for="no-timer" style="margin:0;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.8em;color:#e2e8f0">No timer (take your time)</label>
+        </div>
         <button class="btn primary big" id="btn-solo">Play Solo</button>
         <div class="divider">OR BUILD WITH A FRIEND</div>
         <button class="btn big" id="btn-create" style="margin-bottom:8px">Create Room</button>
@@ -373,7 +385,15 @@ function spawnSparkles(x,y,n,color){
 // ================================================================
 let net=null,isHost=false,isSolo=false,myName='',opName='',roomCode='';
 const BLOCK_W=80, BLOCK_H=30;
-const ROUND_TIME=10000; // 10 seconds
+
+const DIFF={
+    easy:  {soloWrong:6, soloTimeout:4, multiWrong:8, multiTimeout:5, soloCorrect:4, perfectBonus:7, placedBonus:5, recover:2, timer:12000, label:'Easy'},
+    normal:{soloWrong:12,soloTimeout:8, multiWrong:15,multiTimeout:10,soloCorrect:2, perfectBonus:5, placedBonus:3, recover:1, timer:10000, label:'Normal'},
+    hard:  {soloWrong:18,soloTimeout:12,multiWrong:22,multiTimeout:15,soloCorrect:1, perfectBonus:3, placedBonus:2, recover:0.5,timer:8000,  label:'Hard'}
+};
+let difficulty='normal';
+let D=DIFF.normal;
+const ROUND_TIME_FN=()=>D.timer;
 
 let game=null;
 let bestHeight=0;try{bestHeight=parseInt(localStorage.getItem('tt-best')||'0')||0}catch(e){}
@@ -646,7 +666,7 @@ function showQuestion(q,opts){
     g.partnerAnswer=null;
     g.waitingResult=false;
     g.roundActive=true;
-    g.roundTimer=ROUND_TIME;
+    g.roundTimer=ROUND_TIME_FN();
 
     $('q-sentence').innerHTML=q.s.replace('___','<span class="q-blank"></span>');
     $('q-english').textContent=q.e;
@@ -746,14 +766,14 @@ function resolveRound(correct){
         g.correct++;
         g.streak++;
         if(g.streak>g.bestStreak)g.bestStreak=g.streak;
-        g.stability=Math.min(100,g.stability+2);
+        g.stability=Math.min(100,g.stability+D.soloCorrect);
         placeBlock(g.currentQ,false);
         sndThunk();
         showBigMsg('PLACED!','placed');
     }else{
         g.wrong++;
         g.streak=0;
-        g.stability-=12;
+        g.stability-=D.soloWrong;
         triggerShake(0.7);
         sndRumble();
         showBigMsg('SHAKE!','shake-msg');
@@ -781,7 +801,7 @@ function applyResult(resultType,myCorrect){
         g.correct++;
         g.streak++;
         if(g.streak>g.bestStreak)g.bestStreak=g.streak;
-        g.stability=Math.min(100,g.stability+5);
+        g.stability=Math.min(100,g.stability+D.perfectBonus);
         placeBlock(g.currentQ,true);
         showBigMsg('PERFECT!','perfect');
         sndPerfect();
@@ -790,7 +810,7 @@ function applyResult(resultType,myCorrect){
         if(myCorrect)g.correct++;else g.wrong++;
         g.streak=myCorrect?g.streak+1:0;
         if(g.streak>g.bestStreak)g.bestStreak=g.streak;
-        g.stability=Math.min(100,g.stability+3);
+        g.stability=Math.min(100,g.stability+D.placedBonus);
         placeBlock(g.currentQ,false);
         showBigMsg('PLACED!','placed');
         sndThunk();
@@ -798,7 +818,7 @@ function applyResult(resultType,myCorrect){
         // both wrong
         g.wrong++;
         g.streak=0;
-        g.stability-=15;
+        g.stability-=D.multiWrong;
         triggerShake(1);
         sndRumble();
         showBigMsg('SHAKE!','shake-msg');
@@ -817,7 +837,7 @@ function handleTimeout(){
         $('question-area').style.display='none';
         g.wrong++;
         g.streak=0;
-        g.stability-=8;
+        g.stability-=D.soloTimeout;
         triggerShake(0.5);
         sndRumble();
         showBigMsg('TIME UP!','shake-msg');
@@ -836,7 +856,7 @@ function handleTimeout(){
             $('question-area').style.display='none';
             g.wrong++;
             g.streak=0;
-            g.stability-=10;
+            g.stability-=D.multiTimeout;
             triggerShake(0.6);
             sndRumble();
             showBigMsg('TIME UP!','shake-msg');
@@ -1068,8 +1088,9 @@ function loop(ts){
         }else if(!game.collapsed){
             // Round timer
             if(game.roundActive&&game.currentQ){
+                if(!noTimer){
                 game.roundTimer-=dt*1000;
-                const pct=Math.max(0,game.roundTimer/ROUND_TIME*100);
+                const pct=Math.max(0,game.roundTimer/ROUND_TIME_FN()*100);
                 $('q-timer-bar').style.width=pct+'%';
                 if(pct<30)$('q-timer-bar').style.background='#ef4444';
                 else $('q-timer-bar').style.background='#f59e0b';
@@ -1077,6 +1098,10 @@ function loop(ts){
                 if(game.roundTimer<=0){
                     // timeout
                     if(isSolo||isHost)handleTimeout();
+                }
+                }else{
+                    $('q-timer-bar').style.width='100%';
+                    $('q-timer-bar').style.background='#22c55e';
                 }
             }
 
@@ -1092,7 +1117,7 @@ function loop(ts){
             game.lastStabRecover+=dt;
             if(game.lastStabRecover>=5){
                 game.lastStabRecover=0;
-                game.stability=Math.min(100,game.stability+1);
+                game.stability=Math.min(100,game.stability+D.recover);
                 updateHUD();
             }
 
@@ -1244,13 +1269,24 @@ function doStart(){
 // ================================================================
 function showScreen(id){['menu','lobby','results'].forEach(s=>$(s).classList.remove('active'));if(id)$(id).classList.add('active')}
 
+let noTimer=false;
+document.querySelectorAll('.diff-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+        document.querySelectorAll('.diff-btn').forEach(x=>{x.style.borderColor='#334155';x.style.color='#e2e8f0'});
+        b.style.borderColor='#f59e0b';b.style.color='#fff';
+        difficulty=b.dataset.diff;D=DIFF[difficulty];
+    });
+});
+
 $('btn-solo').addEventListener('click',()=>{
     initAudio();isSolo=true;myName=$('inp-name').value.trim()||'Player';
+    noTimer=$('no-timer').checked;
     startGameplay();
 });
 
 $('btn-create').addEventListener('click',async()=>{
     initAudio();myName=$('inp-name').value.trim()||'Player 1';
+    noTimer=$('no-timer').checked;
     roomCode=mkCode();$('menu-status').textContent='Creating room...';
     try{isHost=true;isSolo=false;net=new HostNet(hostMsg);await net.open(roomCode);
         $('lobby-code').textContent=roomCode;$('btn-start').style.display='none';
@@ -1261,6 +1297,7 @@ $('btn-create').addEventListener('click',async()=>{
 
 $('btn-join').addEventListener('click',async()=>{
     initAudio();myName=$('inp-name').value.trim()||'Player 2';
+    noTimer=$('no-timer').checked;
     const code=$('inp-code').value.trim().toUpperCase();
     if(code.length<3){$('menu-status').textContent='Enter the room code.';return}
     $('menu-status').textContent='Joining...';

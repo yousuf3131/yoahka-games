@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tense Raid - Co-op Boss Fight</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" defer></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh;width:100vw;user-select:none}
+        canvas{position:fixed;inset:0;z-index:0}
+
+        .screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;background:rgba(15,23,42,0.96)}
+        .screen.active{display:flex}
+        .panel{background:#1e293b;border:2px solid #334155;padding:36px;width:90%;max-width:420px;text-align:center}
+        .logo{font-size:2.6em;font-weight:900;letter-spacing:-0.02em;line-height:1.1}
+        .logo span{color:#22c55e}
+        .tagline{color:#94a3b8;margin:6px 0 24px;font-size:0.85em}
+        label{display:block;text-align:left;font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px}
+        .field{width:100%;padding:10px 14px;background:#0f172a;border:2px solid #334155;color:#fff;font-family:inherit;font-size:1em;font-weight:600;outline:none;transition:border 0.15s}
+        .field:focus{border-color:#22c55e}
+        .field::placeholder{color:#475569}
+        .btn{font-family:inherit;font-weight:700;font-size:0.9em;padding:10px 20px;border:2px solid #334155;background:transparent;color:#e2e8f0;cursor:pointer;transition:all 0.15s}
+        .btn:hover{border-color:#22c55e;color:#fff}
+        .btn.primary{background:#22c55e;border-color:#22c55e;color:#0f172a}
+        .btn.primary:hover{background:#16a34a}
+        .btn.big{width:100%;padding:14px;font-size:1em}
+        .divider{color:#475569;font-size:0.7em;font-weight:700;letter-spacing:0.08em;margin:16px 0;display:flex;align-items:center;gap:12px}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:#334155}
+        .join-row{display:flex;gap:8px}
+        .join-row .field{text-align:center;letter-spacing:0.2em;text-transform:uppercase}
+        .status{color:#f59e0b;font-size:0.8em;margin-top:12px;min-height:1.2em}
+        .room-box{background:#0f172a;padding:14px;margin-bottom:14px}
+        .room-box small{color:#94a3b8;font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+        .room-code{font-size:2em;font-weight:900;letter-spacing:0.2em;color:#22c55e;margin:4px 0 8px}
+        .plist{list-style:none;margin:10px 0}
+        .plist li{padding:8px 12px;background:#0f172a;margin-bottom:4px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .plist .dot{width:10px;height:10px;flex-shrink:0}
+
+        /* HP BARS */
+        .hp-bar-wrap{position:fixed;left:16px;right:16px;z-index:20;display:none}
+        .hp-bar-wrap.top{top:10px}
+        .hp-bar-wrap.bot{bottom:10px}
+        .hp-bar-outer{width:100%;height:28px;background:#1e293b;border:2px solid #334155;position:relative}
+        .hp-bar-fill{height:100%;transition:width 0.4s ease}
+        .hp-bar-label{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:0.75em;font-weight:800;letter-spacing:0.05em}
+
+        /* PHASE BANNER */
+        .phase-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:35;text-align:center;pointer-events:none;animation:phase-pop 2s ease forwards}
+        .phase-banner .phase-num{font-size:3em;font-weight:900;text-transform:uppercase;letter-spacing:0.05em}
+        .phase-banner .phase-sub{font-size:1.2em;font-weight:700;color:#94a3b8;margin-top:4px}
+        @keyframes phase-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-60%) scale(1)}}
+
+        /* QUESTION AREA */
+        #question-area{position:fixed;top:48px;left:0;right:0;z-index:15;text-align:center;padding:10px 16px;background:rgba(15,23,42,0.85);display:none;border-bottom:2px solid #334155}
+        .q-eng{font-size:0.85em;color:#94a3b8;margin-bottom:2px}
+        .q-ur{font-family:'Noto Nastaliq Urdu',serif;font-size:1.4em;font-weight:700;direction:rtl;line-height:2}
+        .q-blank{display:inline-block;border-bottom:2px solid #22c55e;min-width:80px}
+        .q-tense{display:inline-block;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.45em;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;background:#334155;color:#94a3b8;margin-left:8px;vertical-align:middle;direction:ltr}
+        .q-timer{margin-top:6px;height:4px;background:#334155}
+        .q-timer-fill{height:100%;background:#22c55e;transition:width 0.1s linear}
+
+        /* ANSWER GRID */
+        #answer-grid{position:fixed;bottom:48px;left:8px;right:8px;z-index:15;display:none;grid-template-columns:1fr 1fr;gap:8px}
+        .ans-btn{font-family:'Noto Nastaliq Urdu',serif;font-size:1.15em;font-weight:700;direction:rtl;line-height:1.8;padding:14px 10px;border:3px solid #334155;background:rgba(30,41,59,0.9);color:#e2e8f0;cursor:pointer;transition:all 0.15s;text-align:center;position:relative}
+        .ans-btn:hover{border-color:#94a3b8}
+        .ans-btn.picked{opacity:0.7;pointer-events:none}
+        .ans-btn.correct{border-color:#22c55e;background:rgba(34,197,94,0.2);color:#86efac}
+        .ans-btn.wrong{border-color:#ef4444;background:rgba(239,68,68,0.2);color:#fca5a5}
+        .ans-btn .partner-dot{position:absolute;top:6px;right:6px;width:10px;height:10px;background:#3b82f6;display:none}
+        .ans-btn.partner-picked .partner-dot{display:block}
+
+        /* RESULT OVERLAY */
+        .round-result{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;font-weight:900;text-align:center;pointer-events:none;animation:pop-msg 1.2s ease forwards}
+        .round-result .rr-main{font-size:2em}
+        .round-result .rr-dmg{font-size:1.2em;margin-top:4px}
+        @keyframes pop-msg{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-60%) scale(1)}}
+
+        /* RESULTS SCREEN */
+        .res-title{font-size:2em;font-weight:900;margin-bottom:6px}
+        .res-title.win{color:#22c55e}
+        .res-title.lose{color:#ef4444}
+        .res-sub{color:#94a3b8;margin-bottom:16px}
+        .res-stats{text-align:left;margin-bottom:20px}
+        .res-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #334155;font-size:0.85em}
+        .res-btns{display:flex;gap:8px;justify-content:center}
+
+        .back-link{position:fixed;top:12px;left:12px;color:#94a3b8;text-decoration:none;font-weight:600;font-size:0.8em;z-index:60}
+        .back-link:hover{color:#fff}
+
+        /* BIG CENTER MSG */
+        .big-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;font-size:4em;font-weight:900;pointer-events:none;animation:pop-msg 0.8s ease forwards}
+        .big-msg.go{color:#22c55e}
+        .big-msg.num{color:#fff}
+
+        @media(max-width:500px){
+            .logo{font-size:2em}
+            .panel{padding:24px 18px}
+            .q-ur{font-size:1.15em}
+            .ans-btn{font-size:1em;padding:10px 8px}
+            .phase-banner .phase-num{font-size:2em}
+        }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a href="/" class="back-link">&larr; Home</a>
+
+<!-- MENU -->
+<div id="menu" class="screen active">
+    <div class="panel">
+        <div class="logo">TENSE<span>RAID</span></div>
+        <p class="tagline">Team up to defeat the verb boss!</p>
+        <div style="margin-bottom:14px">
+            <label for="inp-name">Your name</label>
+            <input class="field" id="inp-name" maxlength="14" autocomplete="nickname" placeholder="e.g. Ali">
+        </div>
+        <button class="btn primary big" id="btn-solo">Play Solo</button>
+        <div class="divider">OR CO-OP WITH A FRIEND</div>
+        <button class="btn big" id="btn-create" style="margin-bottom:8px">Create Room</button>
+        <div class="join-row">
+            <input class="field" id="inp-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+            <button class="btn" id="btn-join">Join</button>
+        </div>
+        <div class="status" id="menu-status"></div>
+    </div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="screen">
+    <div class="panel">
+        <div class="room-box">
+            <small>Room Code</small>
+            <div class="room-code" id="lobby-code">-----</div>
+            <button class="btn" id="btn-copy">Copy Code</button>
+        </div>
+        <div style="font-weight:700;margin-bottom:6px">Players</div>
+        <ul class="plist" id="plist"></ul>
+        <button class="btn primary big" id="btn-start" style="display:none;margin-top:10px">Start Raid</button>
+        <div class="status" id="lobby-status">Waiting for teammate...</div>
+    </div>
+</div>
+
+<!-- BOSS HP -->
+<div class="hp-bar-wrap top" id="boss-bar-wrap">
+    <div class="hp-bar-outer">
+        <div class="hp-bar-fill" id="boss-bar-fill" style="width:100%;background:#ef4444"></div>
+        <div class="hp-bar-label"><span>BOSS</span><span id="boss-hp-text">500 / 500</span></div>
+    </div>
+</div>
+
+<!-- TEAM HP -->
+<div class="hp-bar-wrap bot" id="team-bar-wrap">
+    <div class="hp-bar-outer">
+        <div class="hp-bar-fill" id="team-bar-fill" style="width:100%;background:#22c55e"></div>
+        <div class="hp-bar-label"><span>TEAM</span><span id="team-hp-text">500 / 500</span></div>
+    </div>
+</div>
+
+<!-- QUESTION -->
+<div id="question-area">
+    <div class="q-eng" id="q-eng"></div>
+    <div class="q-ur" id="q-ur"></div>
+    <div class="q-timer"><div class="q-timer-fill" id="q-timer-fill" style="width:100%"></div></div>
+</div>
+
+<!-- ANSWER GRID -->
+<div id="answer-grid"></div>
+
+<!-- RESULTS -->
+<div id="results" class="screen">
+    <div class="panel">
+        <div class="res-title" id="res-title">Game Over</div>
+        <div class="res-sub" id="res-sub"></div>
+        <div class="res-stats" id="res-stats"></div>
+        <div class="res-btns">
+            <button class="btn primary" id="btn-again">Play Again</button>
+            <button class="btn" id="btn-menu">Menu</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================================================================
+//  HELPERS
+// ================================================================
+const $=id=>document.getElementById(id);
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+// ================================================================
+//  AUDIO
+// ================================================================
+const AudioCtx=window.AudioContext||window.webkitAudioContext;
+let actx;
+function initAudio(){if(!actx)try{actx=new AudioCtx()}catch(e){}}
+function tone(f,d,t,v){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v||0.1,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+d);o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}
+function sndHit(){tone(660,0.06);setTimeout(()=>tone(880,0.08),50);setTimeout(()=>tone(1100,0.1),100)}
+function sndDoubleHit(){tone(523,0.06);setTimeout(()=>tone(659,0.06),50);setTimeout(()=>tone(784,0.06),100);setTimeout(()=>tone(1047,0.12),150);setTimeout(()=>tone(1318,0.15),220)}
+function sndBossAtk(){tone(80,0.4,'sawtooth',0.12);setTimeout(()=>tone(60,0.3,'square',0.08),100)}
+function sndPhase(){tone(440,0.15);setTimeout(()=>tone(554,0.15),120);setTimeout(()=>tone(659,0.15),240);setTimeout(()=>tone(880,0.2),360)}
+function sndVictory(){[523,659,784,1047,1318].forEach((f,i)=>setTimeout(()=>tone(f,0.2,'sine',0.12),i*120))}
+function sndDefeat(){[440,370,330,262].forEach((f,i)=>setTimeout(()=>tone(f,0.25,'sine',0.1),i*150))}
+function sndCount(){tone(440,0.12,'sine',0.08)}
+function sndGo(){tone(880,0.2,'sine',0.12)}
+
+// ================================================================
+//  NETWORKING
+// ================================================================
+const NET_PREFIX='urdu-tr-';
+const CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const RELAYS=['wss://broker.emqx.io:8084/mqtt','wss://test.mosquitto.org:8081/mqtt'];
+const ICE_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]};
+const mkCode=()=>Array.from({length:5},()=>CHARS[Math.floor(Math.random()*CHARS.length)]).join('');
+const topicRoot=c=>`urdu-tr/v1/${c}`;
+const rndId=()=>'r'+Math.random().toString(36).slice(2,12);
+function loadMqtt(){if(window.mqtt)return Promise.resolve(true);return new Promise(r=>{let n=0;const iv=setInterval(()=>{if(window.mqtt||++n>40){clearInterval(iv);r(!!window.mqtt)}},200)})}
+function relayConn(url){return new Promise((res,rej)=>{const c=window.mqtt.connect(url,{connectTimeout:6000,reconnectPeriod:2000,clean:true,clientId:`tr_${Math.random().toString(16).slice(2,12)}`});c.on('error',()=>{});const t=setTimeout(()=>{c.end(true);rej()},7000);c.once('connect',()=>{clearTimeout(t);res(c)})})}
+function parse(b){try{return JSON.parse(b.toString())}catch(e){return null}}
+
+class HostNet{
+    constructor(cb){this.cb=cb;this.conn=null;this.relayPeer=null;this.relays=[];}
+    open(code){return new Promise((res,rej)=>{if(!window.Peer)return rej(new Error('PeerJS not loaded'));const p=new window.Peer(NET_PREFIX+code,{debug:0,config:ICE_CFG});this.peer=p;const t=setTimeout(()=>rej(new Error('timeout')),12000);p.on('open',()=>{clearTimeout(t);this.startRelays(code);res()});p.on('error',e=>{clearTimeout(t);rej(new Error(e.type==='unavailable-id'?'code-taken':e.type))});p.on('connection',c=>{c.on('open',()=>{this.conn=c;this.cb({t:'join'})});c.on('data',d=>this.cb(d));const g=()=>{if(this.conn===c){this.conn=null;this.cb({t:'leave'})}};c.on('close',g);c.on('error',g)});p.on('disconnected',()=>{try{if(!p.destroyed)p.reconnect()}catch(e){}})})}
+    async startRelays(code){this.root=topicRoot(code);if(!(await loadMqtt()))return;for(const url of RELAYS){relayConn(url).then(client=>{if(this.closed)return client.end(true);this.relays.push(client);client.subscribe(`${this.root}/h`,{qos:1});client.on('message',(_,buf)=>{const env=parse(buf);if(!env||!env.f||!env.m)return;if(this.conn)return;if(env.m.t==='bye'){if(this.relayPeer===env.f){this.relayPeer=null;this.cb({t:'leave'})}return}if(!this.relayPeer){if(env.m.t!=='hello')return;this.relayPeer=env.f}if(env.m.t!=='ping')this.cb(env.m)})}).catch(()=>{})}}
+    send(msg){if(this.conn&&this.conn.open)this.conn.send(msg);else if(this.relayPeer&&this.relays.length){const p=JSON.stringify(msg);this.relays.forEach(c=>c.publish(`${this.root}/all`,p,{qos:1}))}}
+    close(){this.closed=true;if(this.relayPeer&&this.relays.length){const p=JSON.stringify({t:'closed'});this.relays.forEach(c=>c.publish(`${this.root}/all`,p,{qos:1}))}const rs=this.relays;setTimeout(()=>rs.forEach(c=>c.end(true)),300);if(this.peer)this.peer.destroy();this.conn=null}
+}
+class ClientNet{
+    constructor(cb){this.cb=cb}
+    async connect(code){this.root=topicRoot(code);try{return await this.connectDirect(code)}catch(e){if(e.definitive)throw e}return this.connectRelay()}
+    connectDirect(code){return new Promise((res,rej)=>{if(!window.Peer)return rej(new Error('no peer'));const p=new window.Peer({debug:0,config:ICE_CFG});this.peer=p;let done=false;const fail=(m,def)=>{if(done)return;done=true;clearTimeout(t);const e=new Error(m);e.definitive=!!def;rej(e)};const t=setTimeout(()=>fail('timeout'),12000);p.on('open',id=>{this.id=id;const c=p.connect(NET_PREFIX+code,{reliable:true,serialization:'json'});c.on('open',()=>{if(done)return c.close();done=true;clearTimeout(t);this.conn=c;this.mode='direct';res(id)});c.on('data',d=>this.cb(d));c.on('close',()=>{if(this.conn===c&&!this.closing)this.cb({t:'closed'})});setTimeout(()=>fail('slow'),8000)});p.on('error',e=>{if(e.type==='peer-unavailable')fail('No room found.',true);else fail(e.type)})})}
+    async connectRelay(){if(this.peer){try{this.peer.destroy()}catch(e){}this.peer=null}if(!this.id)this.id=rndId();if(!(await loadMqtt()))throw new Error('Cannot connect');for(const url of RELAYS){let client;try{client=await relayConn(url);await new Promise((r,j)=>client.subscribe([`${this.root}/c/${this.id}`,`${this.root}/all`],{qos:1},e=>(e?j(e):r())))}catch(e){if(client)client.end(true);continue}this.relay=client;this.mode='relay';this.lastHeard=Date.now();client.on('message',(_,buf)=>{const m=parse(buf);if(!m)return;this.lastHeard=Date.now();if(m.t==='hb')return;if(m.t==='closed'){if(!this.closing)this.cb({t:'closed'});return}this.cb(m)});this.pingTimer=setInterval(()=>{this.publish({t:'ping'},0);if(Date.now()-this.lastHeard>15000&&!this.closing){clearInterval(this.pingTimer);this.cb({t:'closed'})}},3000);return this.id}throw new Error('Cannot connect')}
+    publish(msg,qos){this.relay.publish(`${this.root}/h`,JSON.stringify({f:this.id,m:msg}),{qos})}
+    send(msg){if(this.mode==='direct'){if(this.conn&&this.conn.open)this.conn.send(msg)}else if(this.mode==='relay')this.publish(msg,1)}
+    close(){this.closing=true;clearInterval(this.pingTimer);if(this.relay){try{this.publish({t:'bye'},0)}catch(e){}const r=this.relay;setTimeout(()=>r.end(true),300)}if(this.peer)this.peer.destroy()}
+}
+
+// ================================================================
+//  VERB DATA & QUESTIONS
+// ================================================================
+const V={
+    eat:{hab:['کھاتا ہے','کھاتی ہے','کھاتے ہیں'],cont:['کھا رہا ہے','کھا رہی ہے','کھا رہے ہیں'],fut:['کھائے گا','کھائے گی','کھائیں گے'],past:['کھایا','کھائی','کھائے'],comp:['کھا لیا','کھا لی','کھا لیے']},
+    write:{hab:['لکھتا ہے','لکھتی ہے','لکھتے ہیں'],cont:['لکھ رہا ہے','لکھ رہی ہے','لکھ رہے ہیں'],fut:['لکھے گا','لکھے گی','لکھیں گے'],past:['لکھا','لکھی','لکھے'],comp:['لکھ لیا','لکھ لی','لکھ لیے']},
+    read:{hab:['پڑھتا ہے','پڑھتی ہے','پڑھتے ہیں'],cont:['پڑھ رہا ہے','پڑھ رہی ہے','پڑھ رہے ہیں'],fut:['پڑھے گا','پڑھے گی','پڑھیں گے'],past:['پڑھا','پڑھی','پڑھے'],comp:['پڑھ لیا','پڑھ لی','پڑھ لیے']},
+    drink:{hab:['پیتا ہے','پیتی ہے','پیتے ہیں'],cont:['پی رہا ہے','پی رہی ہے','پی رہے ہیں'],fut:['پیے گا','پیے گی','پیئیں گے'],past:['پیا','پی','پیے'],comp:['پی لیا','پی لی','پی لیے']},
+    run:{hab:['دوڑتا ہے','دوڑتی ہے','دوڑتے ہیں'],cont:['دوڑ رہا ہے','دوڑ رہی ہے','دوڑ رہے ہیں'],fut:['دوڑے گا','دوڑے گی','دوڑیں گے'],past:['دوڑا','دوڑی','دوڑے']},
+    sleep:{hab:['سوتا ہے','سوتی ہے','سوتے ہیں'],cont:['سو رہا ہے','سو رہی ہے','سو رہے ہیں'],fut:['سوئے گا','سوئے گی','سوئیں گے'],past:['سویا','سوئی','سوئے']},
+    understand:{hab:['سمجھتا ہے','سمجھتی ہے','سمجھتے ہیں'],cont:['سمجھ رہا ہے','سمجھ رہی ہے','سمجھ رہے ہیں'],fut:['سمجھے گا','سمجھے گی','سمجھیں گے'],past:['سمجھا','سمجھی','سمجھے'],comp:['سمجھ لیا','سمجھ لی','سمجھ لیے']},
+    buy:{hab:['خریدتا ہے','خریدتی ہے','خریدتے ہیں'],cont:['خرید رہا ہے','خرید رہی ہے','خرید رہے ہیں'],fut:['خریدے گا','خریدے گی','خریدیں گے'],past:['خریدا','خریدی','خریدے'],comp:['خرید لیا','خرید لی','خرید لیے']},
+    go:{hab:['جاتا ہے','جاتی ہے','جاتے ہیں'],cont:['جا رہا ہے','جا رہی ہے','جا رہے ہیں'],fut:['جائے گا','جائے گی','جائیں گے'],past:['گیا','گئی','گئے']},
+    come:{hab:['آتا ہے','آتی ہے','آتے ہیں'],cont:['آ رہا ہے','آ رہی ہے','آ رہے ہیں'],fut:['آئے گا','آئے گی','آئیں گے'],past:['آیا','آئی','آئے']},
+    cook:{hab:['پکاتا ہے','پکاتی ہے','پکاتے ہیں'],cont:['پکا رہا ہے','پکا رہی ہے','پکا رہے ہیں'],fut:['پکائے گا','پکائے گی','پکائیں گے'],past:['پکایا','پکائی','پکائے'],comp:['پکا لیا','پکا لی','پکا لیے']},
+    wash:{hab:['دھوتا ہے','دھوتی ہے','دھوتے ہیں'],cont:['دھو رہا ہے','دھو رہی ہے','دھو رہے ہیں'],fut:['دھوئے گا','دھوئے گی','دھوئیں گے'],past:['دھویا','دھوئی','دھوئے'],comp:['دھو لیا','دھو لی','دھو لیے']},
+};
+
+const TENSE_LABELS={hab:'Habitual',cont:'Continuous',fut:'Future',past:'Simple Past',comp:'Compound'};
+const ALL_Q=[
+    {s:'لڑکا روز کھانا ___۔',e:'The boy eats food daily.',c:'کھاتا ہے',v:'eat',t:'hab'},
+    {s:'لڑکی ہمیشہ کتاب ___۔',e:'The girl always reads.',c:'پڑھتی ہے',v:'read',t:'hab'},
+    {s:'بچے روز باہر ___۔',e:'The children run outside daily.',c:'دوڑتے ہیں',v:'run',t:'hab'},
+    {s:'وہ (M) ہمیشہ سبق ___۔',e:'He always understands.',c:'سمجھتا ہے',v:'understand',t:'hab'},
+    {s:'وہ (F) روز چائے ___۔',e:'She drinks tea daily.',c:'پیتی ہے',v:'drink',t:'hab'},
+    {s:'لڑکا ہمیشہ ___۔',e:'The boy always runs.',c:'دوڑتا ہے',v:'run',t:'hab'},
+    {s:'لڑکی روز جلدی ___۔',e:'The girl sleeps early daily.',c:'سوتی ہے',v:'sleep',t:'hab'},
+    {s:'بچے روز خط ___۔',e:'The children write daily.',c:'لکھتے ہیں',v:'write',t:'hab'},
+    {s:'وہ (M) روز سبزی ___۔',e:'He buys vegetables daily.',c:'خریدتا ہے',v:'buy',t:'hab'},
+    {s:'لڑکی ہمیشہ کھانا ___۔',e:'The girl always cooks.',c:'پکاتی ہے',v:'cook',t:'hab'},
+    {s:'لڑکا ابھی کھانا ___۔',e:'The boy is eating now.',c:'کھا رہا ہے',v:'eat',t:'cont'},
+    {s:'لڑکی ابھی کتاب ___۔',e:'The girl is reading now.',c:'پڑھ رہی ہے',v:'read',t:'cont'},
+    {s:'بچے ابھی باہر ___۔',e:'The children are running now.',c:'دوڑ رہے ہیں',v:'run',t:'cont'},
+    {s:'وہ (M) ابھی خط ___۔',e:'He is writing now.',c:'لکھ رہا ہے',v:'write',t:'cont'},
+    {s:'وہ (F) ابھی چائے ___۔',e:'She is drinking tea now.',c:'پی رہی ہے',v:'drink',t:'cont'},
+    {s:'لڑکا ابھی ___۔',e:'The boy is sleeping now.',c:'سو رہا ہے',v:'sleep',t:'cont'},
+    {s:'لڑکی ابھی کھانا ___۔',e:'The girl is cooking now.',c:'پکا رہی ہے',v:'cook',t:'cont'},
+    {s:'لڑکا ابھی سکول ___۔',e:'The boy is going to school.',c:'جا رہا ہے',v:'go',t:'cont'},
+    {s:'لڑکا کل کھانا ___۔',e:'The boy will eat tomorrow.',c:'کھائے گا',v:'eat',t:'fut'},
+    {s:'لڑکی کل کتاب ___۔',e:'The girl will read tomorrow.',c:'پڑھے گی',v:'read',t:'fut'},
+    {s:'بچے کل باہر ___۔',e:'The children will run tomorrow.',c:'دوڑیں گے',v:'run',t:'fut'},
+    {s:'وہ (M) کل خط ___۔',e:'He will write tomorrow.',c:'لکھے گا',v:'write',t:'fut'},
+    {s:'وہ (F) کل چائے ___۔',e:'She will drink tea tomorrow.',c:'پیے گی',v:'drink',t:'fut'},
+    {s:'لڑکا کل جلدی ___۔',e:'The boy will sleep early.',c:'سوئے گا',v:'sleep',t:'fut'},
+    {s:'لڑکی کل کھانا ___۔',e:'The girl will cook tomorrow.',c:'پکائے گی',v:'cook',t:'fut'},
+    {s:'وہ (M) کل سکول ___۔',e:'He will go to school.',c:'جائے گا',v:'go',t:'fut'},
+    {s:'وہ (F) کل گھر ___۔',e:'She will come home.',c:'آئے گی',v:'come',t:'fut'},
+    {s:'لڑکے نے کھانا ___۔',e:'The boy ate food.',c:'کھایا',v:'eat',t:'past'},
+    {s:'لڑکی نے کتاب ___۔',e:'The girl read the book.',c:'پڑھی',v:'read',t:'past'},
+    {s:'اس نے خط ___۔',e:'He/she wrote a letter.',c:'لکھا',v:'write',t:'past'},
+    {s:'لڑکا سکول ___۔',e:'The boy went to school.',c:'گیا',v:'go',t:'past'},
+    {s:'لڑکی گھر ___۔',e:'The girl came home.',c:'آئی',v:'come',t:'past'},
+    {s:'بچے باہر ___۔',e:'The children ran outside.',c:'دوڑے',v:'run',t:'past'},
+    {s:'وہ (F) جلدی ___۔',e:'She slept early.',c:'سوئی',v:'sleep',t:'past'},
+    {s:'تم نے سبق ___۔',e:'You understood the lesson.',c:'سمجھا',v:'understand',t:'past'},
+    {s:'لڑکی نے کھانا ___۔',e:'The girl cooked food.',c:'پکایا',v:'cook',t:'past'},
+    {s:'میں نے کھانا ___۔',e:'I finished eating.',c:'کھا لیا',v:'eat',t:'comp'},
+    {s:'اس نے کتاب ___۔',e:'He finished reading.',c:'پڑھ لی',v:'read',t:'comp'},
+    {s:'لڑکی نے خط ___۔',e:'She finished writing.',c:'لکھ لیا',v:'write',t:'comp'},
+    {s:'ہم نے چائے ___۔',e:'We finished drinking tea.',c:'پی لی',v:'drink',t:'comp'},
+    {s:'تم نے سبق ___۔',e:'You fully understood.',c:'سمجھ لیا',v:'understand',t:'comp'},
+    {s:'انہوں نے کپڑے ___۔',e:'They finished washing.',c:'دھو لیے',v:'wash',t:'comp'},
+    {s:'لڑکے نے کھانا ___۔',e:'The boy finished cooking.',c:'پکا لیا',v:'cook',t:'comp'},
+    {s:'میں نے روٹی ___۔',e:'I finished eating bread.',c:'کھا لی',v:'eat',t:'comp'},
+];
+
+function getDistractors(vk,correct,n){
+    const v=V[vk];if(!v)return[];const all=[];
+    for(const t of['hab','cont','fut','past','comp']){if(!v[t])continue;for(const f of v[t])if(f!==correct&&all.indexOf(f)<0)all.push(f)}
+    return shuffle(all).slice(0,n);
+}
+
+// ================================================================
+//  CANVAS
+// ================================================================
+const cvs=$('c'),ctx=cvs.getContext('2d');
+let W,H;
+function resize(){W=cvs.width=innerWidth;H=cvs.height=innerHeight}
+resize();addEventListener('resize',resize);
+
+const bgStars=Array.from({length:100},()=>({x:Math.random(),y:Math.random(),s:0.5+Math.random()*2,b:0.2+Math.random()*0.8,sp:0.5+Math.random()*2}));
+let particles=[];
+let shakeAmt=0;
+let screenFlash='';
+let screenFlashAlpha=0;
+
+function spawnParticles(x,y,color,n){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-0.5)*400,vy:(Math.random()-0.5)*400-80,life:0.5+Math.random()*0.5,color,r:2+Math.random()*5})}
+function spawnExplosion(x,y,n){const cols=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#fff'];for(let i=0;i<n;i++){const c=cols[Math.floor(Math.random()*cols.length)];particles.push({x,y,vx:(Math.random()-0.5)*600,vy:(Math.random()-0.5)*600,life:0.8+Math.random()*1,color:c,r:3+Math.random()*8})}}
+function spawnConfetti(n){for(let i=0;i<n;i++){const cols=['#22c55e','#3b82f6','#f59e0b','#a855f7','#ec4899'];particles.push({x:Math.random()*W,y:-20,vx:(Math.random()-0.5)*100,vy:100+Math.random()*200,life:2+Math.random()*2,color:cols[Math.floor(Math.random()*cols.length)],r:3+Math.random()*4})}}
+
+// Projectile from bottom to boss
+let projectiles=[];
+function spawnProjectile(color,double){
+    const px=W/2+(Math.random()-0.5)*100;
+    projectiles.push({x:px,y:H-80,tx:W/2,ty:boss.y,color,r:double?12:8,life:1,speed:800,double});
+}
+
+// Boss state
+const boss={
+    x:0,y:0,baseRadius:50,radius:50,color:'#22c55e',
+    pulsePhase:0,hitFlash:0,atkFlash:0,shakeX:0,shakeY:0,
+    eyeGlow:1,dead:false,deathTimer:0,
+    sides:6
+};
+const PHASE_COLORS=['#22c55e','#f97316','#a855f7','#ef4444'];
+const PHASE_SIDES=[6,8,10,12];
+const PHASE_NAMES=['HABITUAL','PAST','COMPOUND','ALL MIXED'];
+const PHASE_TENSES=[['hab'],['past'],['comp'],['hab','cont','fut','past','comp']];
+
+function drawBoss(dt){
+    if(!game||!game.started||boss.dead)return;
+    boss.x=W/2;
+    boss.y=Math.min(140,H*0.18);
+    boss.pulsePhase+=dt*2;
+
+    const pulse=1+Math.sin(boss.pulsePhase)*0.04;
+    let drawR=boss.radius*pulse;
+
+    // hit flash shrink
+    if(boss.hitFlash>0){boss.hitFlash-=dt*3;drawR*=0.9+0.1*(1-boss.hitFlash)}
+    // attack flash grow
+    if(boss.atkFlash>0){boss.atkFlash-=dt*2;drawR*=1+0.15*boss.atkFlash}
+    // shake
+    if(boss.shakeX!==0||boss.shakeY!==0){boss.shakeX*=0.9;boss.shakeY*=0.9;if(Math.abs(boss.shakeX)<0.5)boss.shakeX=0;if(Math.abs(boss.shakeY)<0.5)boss.shakeY=0}
+
+    const cx=boss.x+boss.shakeX;
+    const cy=boss.y+boss.shakeY;
+    const sides=boss.sides;
+
+    ctx.save();
+    // Glow
+    const grd=ctx.createRadialGradient(cx,cy,drawR*0.5,cx,cy,drawR*2);
+    grd.addColorStop(0,boss.color+'40');
+    grd.addColorStop(1,'transparent');
+    ctx.fillStyle=grd;
+    ctx.beginPath();ctx.arc(cx,cy,drawR*2,0,Math.PI*2);ctx.fill();
+
+    // Phase 4 swirling colors
+    if(game.phase===3){
+        const t=Date.now()*0.002;
+        for(let i=0;i<4;i++){
+            ctx.globalAlpha=0.15;
+            ctx.fillStyle=PHASE_COLORS[i];
+            ctx.beginPath();
+            const ox=Math.cos(t+i*Math.PI/2)*drawR*0.3;
+            const oy=Math.sin(t+i*Math.PI/2)*drawR*0.3;
+            ctx.arc(cx+ox,cy+oy,drawR*0.6,0,Math.PI*2);
+            ctx.fill();
+        }
+        ctx.globalAlpha=1;
+    }
+
+    // Main body
+    ctx.fillStyle=boss.hitFlash>0.3?'#fff':boss.color;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let i=0;i<sides;i++){
+        const a=(Math.PI*2/sides)*i-Math.PI/2;
+        const spike=(i%2===0)?drawR:drawR*0.85;
+        const px=cx+Math.cos(a)*spike;
+        const py=cy+Math.sin(a)*spike;
+        if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fill();ctx.stroke();
+
+    // Eyes
+    const eyeSpacing=drawR*0.25;
+    const eyeY=cy-drawR*0.1;
+    ctx.fillStyle=boss.atkFlash>0?'#ef4444':'#fff';
+    ctx.shadowColor=boss.atkFlash>0?'#ef4444':'#fff';
+    ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(cx-eyeSpacing,eyeY,4,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+eyeSpacing,eyeY,4,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+
+    ctx.restore();
+}
+
+function drawBackground(dt){
+    ctx.save();
+    if(shakeAmt>0){ctx.translate((Math.random()-0.5)*shakeAmt*20,(Math.random()-0.5)*shakeAmt*20);shakeAmt=Math.max(0,shakeAmt-dt*3)}
+    const sky=ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#0f172a');sky.addColorStop(0.5,'#1e1b4b');sky.addColorStop(1,'#0f172a');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+    const now=Date.now();
+    bgStars.forEach(s=>{
+        ctx.globalAlpha=s.b*(0.4+0.6*Math.sin(now*0.002*s.sp+s.x*100));
+        ctx.fillStyle='#e2e8f0';
+        ctx.fillRect(s.x*W,s.y*H,s.s,s.s);
+    });
+    ctx.globalAlpha=1;
+
+    // particles
+    particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=300*dt;p.life-=dt;if(p.life>0){ctx.globalAlpha=Math.min(1,p.life*2);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r*Math.min(1,p.life*2),0,Math.PI*2);ctx.fill()}});
+    ctx.globalAlpha=1;
+    particles=particles.filter(p=>p.life>0);
+
+    // projectiles
+    projectiles.forEach(p=>{
+        const dx=p.tx-p.x,dy=p.ty-p.y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<15){p.life=0;spawnParticles(p.tx,p.ty,p.color,p.double?30:15);return}
+        const speed=p.speed*dt;
+        p.x+=dx/dist*speed;p.y+=dy/dist*speed;p.life-=dt;
+        if(p.life>0){
+            ctx.globalAlpha=0.9;
+            const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2);
+            g.addColorStop(0,'#fff');g.addColorStop(0.4,p.color);g.addColorStop(1,'transparent');
+            ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*2,0,Math.PI*2);ctx.fill();
+            ctx.globalAlpha=1;
+        }
+    });
+    projectiles=projectiles.filter(p=>p.life>0);
+
+    // screen flash
+    if(screenFlashAlpha>0){
+        ctx.globalAlpha=screenFlashAlpha;
+        ctx.fillStyle=screenFlash;
+        ctx.fillRect(0,0,W,H);
+        ctx.globalAlpha=1;
+        screenFlashAlpha=Math.max(0,screenFlashAlpha-dt*3);
+    }
+
+    drawBoss(dt);
+    ctx.restore();
+}
+
+// ================================================================
+//  GAME STATE
+// ================================================================
+let net=null,isHost=false,isSolo=false,myName='',opName='',roomCode='';
+let game=null;
+
+const BOSS_HP_MULTI=[500,700,900,1200];
+const BOSS_HP_SOLO=[300,400,500,700];
+const TEAM_HP=500;
+
+function newGame(){
+    return{
+        started:false,over:false,
+        phase:0,
+        bossHp:0,bossMaxHp:0,
+        teamHp:TEAM_HP,teamMaxHp:TEAM_HP,
+        round:0,
+        // per-phase question queue
+        questionQueue:[],qi:0,
+        // current round state
+        currentQ:null,
+        myAnswer:null,myTime:0,
+        partnerAnswer:null,partnerTime:0,
+        answerStartTime:0,
+        timerLeft:8,
+        waitingResult:false,
+        roundPause:0,
+        // stats
+        myCorrect:0,myWrong:0,myDmgDealt:0,
+        partnerCorrect:0,partnerWrong:0,partnerDmgDealt:0,
+        totalRounds:0,phasesCleared:0,
+        // countdown
+        countdown:0,countdownPhase:0,
+        phaseTransition:0,
+    };
+}
+
+function setupPhase(phaseIdx){
+    const g=game;
+    g.phase=phaseIdx;
+    g.bossMaxHp=isSolo?BOSS_HP_SOLO[phaseIdx]:BOSS_HP_MULTI[phaseIdx];
+    g.bossHp=g.bossMaxHp;
+    boss.color=PHASE_COLORS[phaseIdx];
+    boss.sides=PHASE_SIDES[phaseIdx];
+    boss.radius=50+phaseIdx*5;
+    boss.dead=false;
+    // build question queue for this phase
+    const tenses=PHASE_TENSES[phaseIdx];
+    const filtered=ALL_Q.filter(q=>tenses.indexOf(q.t)>=0);
+    g.questionQueue=shuffle(filtered);
+    g.qi=0;
+    g.currentQ=null;
+    g.roundPause=0;
+    updateBars();
+}
+
+function showPhaseBanner(idx){
+    const el=document.createElement('div');
+    el.className='phase-banner';
+    el.innerHTML=`<div class="phase-num" style="color:${PHASE_COLORS[idx]}">Phase ${idx+1}</div><div class="phase-sub">${PHASE_NAMES[idx]}</div>`;
+    document.body.appendChild(el);
+    sndPhase();
+    setTimeout(()=>el.remove(),2200);
+}
+
+// ================================================================
+//  HP BARS
+// ================================================================
+function updateBars(){
+    if(!game)return;
+    const bp=Math.max(0,game.bossHp/game.bossMaxHp*100);
+    $('boss-bar-fill').style.width=bp+'%';
+    $('boss-hp-text').textContent=Math.max(0,game.bossHp)+' / '+game.bossMaxHp;
+
+    const tp=Math.max(0,game.teamHp/game.teamMaxHp*100);
+    $('team-bar-fill').style.width=tp+'%';
+    // color shift when low
+    if(tp<30)$('team-bar-fill').style.background='#ef4444';
+    else if(tp<60)$('team-bar-fill').style.background='#f59e0b';
+    else $('team-bar-fill').style.background='#22c55e';
+    $('team-hp-text').textContent=Math.max(0,game.teamHp)+' / '+game.teamMaxHp;
+}
+
+// ================================================================
+//  QUESTION / ANSWERS
+// ================================================================
+function showQuestion(q){
+    const g=game;
+    g.currentQ=q;
+    g.myAnswer=null;g.myTime=0;
+    g.partnerAnswer=null;g.partnerTime=0;
+    g.answerStartTime=Date.now();
+    g.timerLeft=8;
+    g.waitingResult=false;
+
+    $('q-eng').textContent=q.e;
+    $('q-ur').innerHTML=q.s.replace('___','<span class="q-blank"></span>')+
+        '<span class="q-tense">'+TENSE_LABELS[q.t]+'</span>';
+    $('q-timer-fill').style.width='100%';
+    $('question-area').style.display='block';
+
+    // build 4 answer buttons
+    const grid=$('answer-grid');
+    grid.innerHTML='';
+    grid.style.display='grid';
+    const distractors=getDistractors(q.v,q.c,3);
+    const opts=shuffle([q.c,...distractors]);
+    g.currentOpts=opts;
+
+    opts.forEach((text,i)=>{
+        const btn=document.createElement('div');
+        btn.className='ans-btn';
+        // tense-colored border
+        const tc={hab:'#22c55e',cont:'#3b82f6',fut:'#f59e0b',past:'#f97316',comp:'#a855f7'}[q.t]||'#334155';
+        btn.style.borderColor=tc+'60';
+        btn.innerHTML=text+'<div class="partner-dot"></div>';
+        btn.addEventListener('click',()=>onAnswer(text,i));
+        btn.addEventListener('touchend',e=>{e.preventDefault();onAnswer(text,i)});
+        grid.appendChild(btn);
+    });
+}
+
+function onAnswer(text,idx){
+    if(!game||!game.currentQ||game.myAnswer!==null)return;
+    game.myAnswer=text;
+    game.myTime=Date.now()-game.answerStartTime;
+
+    // highlight my pick
+    const btns=$('answer-grid').children;
+    for(let i=0;i<btns.length;i++){
+        btns[i].classList.add('picked');
+    }
+
+    if(isSolo){
+        resolveRound();
+    }else{
+        // send answer to host or partner
+        if(isHost){
+            // host already has their answer, check if client answered
+            if(game.partnerAnswer!==null)resolveRound();
+        }else{
+            net.send({t:'ans',ans:text,time:game.myTime});
+            if(game.partnerAnswer!==null){}// wait for host result
+        }
+    }
+}
+
+function resolveRound(){
+    if(!game||!game.currentQ)return;
+    const g=game;
+    const correct=g.currentQ.c;
+    g.totalRounds++;
+
+    if(isSolo){
+        const right=g.myAnswer===correct;
+        let dmg=0;
+        if(g.myAnswer===null){
+            // timeout
+            g.teamHp-=40;
+            showRoundResult('BOSS ATTACKS!','#ef4444','Timeout! -40 HP',true);
+            sndBossAtk();bossAttackAnim();
+        }else if(right){
+            dmg=80;
+            if(g.myTime<2000)dmg+=25;
+            g.bossHp-=dmg;
+            g.myCorrect++;g.myDmgDealt+=dmg;
+            showRoundResult('HIT!','#22c55e','-'+dmg+' Boss HP',false);
+            sndHit();spawnProjectile('#22c55e',false);
+            boss.hitFlash=1;boss.shakeX=(Math.random()-0.5)*15;boss.shakeY=(Math.random()-0.5)*10;
+        }else{
+            g.teamHp-=50;g.myWrong++;
+            showRoundResult('BOSS ATTACKS!','#ef4444','-50 Team HP',true);
+            sndBossAtk();bossAttackAnim();
+        }
+        afterRound();
+    }else if(isHost){
+        // Both have answered (or timed out)
+        const hostRight=g.myAnswer===correct;
+        const clientRight=g.partnerAnswer===correct;
+        let dmg=0,teamDmg=0;
+
+        if(g.myAnswer===null&&g.partnerAnswer===null){
+            teamDmg=40;
+        }else if(hostRight&&clientRight){
+            dmg=100;
+            if(g.myTime<2000)dmg+=25;
+            if(g.partnerTime<2000)dmg+=25;
+        }else if(hostRight||clientRight){
+            dmg=50;
+            if(hostRight&&g.myTime<2000)dmg+=25;
+            if(clientRight&&g.partnerTime<2000)dmg+=25;
+        }else{
+            teamDmg=60;
+        }
+
+        if(dmg>0)g.bossHp-=dmg;
+        if(teamDmg>0)g.teamHp-=teamDmg;
+
+        if(hostRight){g.myCorrect++;g.myDmgDealt+=hostRight&&clientRight?dmg/2:dmg}
+        else{g.myWrong++}
+        if(clientRight){g.partnerCorrect++;g.partnerDmgDealt+=hostRight&&clientRight?dmg/2:dmg}
+        else{g.partnerWrong++}
+
+        // visual/audio
+        if(hostRight&&clientRight){
+            showRoundResult('DOUBLE ATTACK!','#f59e0b','-'+dmg+' Boss HP',false);
+            sndDoubleHit();spawnProjectile('#f59e0b',true);spawnProjectile('#3b82f6',true);
+            screenFlash='#22c55e';screenFlashAlpha=0.3;
+            boss.hitFlash=1;boss.shakeX=(Math.random()-0.5)*25;boss.shakeY=(Math.random()-0.5)*15;
+        }else if(hostRight||clientRight){
+            showRoundResult('HIT!','#22c55e','-'+dmg+' Boss HP',false);
+            sndHit();spawnProjectile('#22c55e',false);
+            boss.hitFlash=1;boss.shakeX=(Math.random()-0.5)*12;boss.shakeY=(Math.random()-0.5)*8;
+        }else if(teamDmg>0){
+            showRoundResult('BOSS ATTACKS!','#ef4444','-'+teamDmg+' Team HP',true);
+            sndBossAtk();bossAttackAnim();
+        }
+
+        // reveal correct on buttons
+        revealAnswers(correct);
+
+        // send result to client
+        net.send({t:'result',hostAns:g.myAnswer,clientAns:g.partnerAnswer,correct,bossHp:g.bossHp,teamHp:g.teamHp,dmg,teamDmg,
+            hc:g.myCorrect,hw:g.myWrong,hd:g.myDmgDealt,cc:g.partnerCorrect,cw:g.partnerWrong,cd:g.partnerDmgDealt});
+
+        afterRound();
+    }
+}
+
+function bossAttackAnim(){
+    boss.atkFlash=1;
+    shakeAmt=1.5;
+    screenFlash='#ef4444';screenFlashAlpha=0.3;
+    // shockwave particles from boss
+    spawnParticles(boss.x,boss.y,'#ef4444',25);
+}
+
+function revealAnswers(correct){
+    const btns=$('answer-grid').children;
+    const opts=game.currentOpts;
+    for(let i=0;i<btns.length;i++){
+        if(opts[i]===correct)btns[i].classList.add('correct');
+        else btns[i].classList.add('wrong');
+    }
+}
+
+function showRoundResult(main,color,sub,isBossAtk){
+    const el=document.createElement('div');
+    el.className='round-result';
+    el.innerHTML=`<div class="rr-main" style="color:${color}">${main}</div><div class="rr-dmg" style="color:${color}80">${sub}</div>`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1400);
+}
+
+function afterRound(){
+    const g=game;
+    updateBars();
+    revealAnswers(g.currentQ.c);
+    g.roundPause=1.5;
+    g.currentQ=null;
+
+    // check boss defeated
+    if(g.bossHp<=0){
+        g.bossHp=0;updateBars();
+        g.phasesCleared++;
+        if(g.phase<3){
+            // next phase after pause
+            g.roundPause=2.5;
+            setTimeout(()=>{
+                if(!g.over){
+                    const nextPhase=g.phase+1;
+                    setupPhase(nextPhase);
+                    showPhaseBanner(nextPhase);
+                    if(!isSolo&&isHost){
+                        net.send({t:'phase',phase:nextPhase,bossHp:g.bossMaxHp,teamHp:g.teamHp});
+                    }
+                }
+            },1500);
+        }else{
+            // victory!
+            setTimeout(()=>{
+                if(!g.over)endGame(true);
+            },1000);
+        }
+    }
+
+    // check team defeated
+    if(g.teamHp<=0){
+        g.teamHp=0;updateBars();
+        setTimeout(()=>{
+            if(!g.over)endGame(false);
+        },1000);
+    }
+}
+
+// ================================================================
+//  GAME LOOP
+// ================================================================
+let lastT=0;
+
+function loop(ts){
+    const dt=Math.min((ts-lastT)/1000,0.06);lastT=ts;
+    drawBackground(dt);
+
+    if(game&&game.started&&!game.over){
+        // countdown
+        if(game.countdown>0){
+            game.countdown-=dt;
+            const n=Math.ceil(game.countdown);
+            if(n!==game.countdownPhase&&n>0){game.countdownPhase=n;showBigMsg(n.toString(),'num');sndCount()}
+            if(game.countdown<=0){showBigMsg('FIGHT!','go');sndGo();game.roundPause=1.0}
+        }else if(game.roundPause>0){
+            game.roundPause-=dt;
+            if(game.roundPause<=0&&!game.over){
+                nextQuestion();
+            }
+        }else if(game.currentQ&&game.myAnswer===null&&!game.waitingResult){
+            // timer countdown
+            game.timerLeft-=dt;
+            const pct=Math.max(0,game.timerLeft/8*100);
+            $('q-timer-fill').style.width=pct+'%';
+            if(game.timerLeft<3)$('q-timer-fill').style.background='#ef4444';
+            else $('q-timer-fill').style.background='#22c55e';
+
+            if(game.timerLeft<=0){
+                // timeout
+                game.myAnswer=null;
+                if(isSolo){
+                    game.totalRounds++;
+                    game.teamHp-=40;
+                    showRoundResult('BOSS ATTACKS!','#ef4444','Timeout! -40 HP',true);
+                    sndBossAtk();bossAttackAnim();
+                    afterRound();
+                }else if(isHost){
+                    if(game.partnerAnswer!==null||game.timerLeft<=-1){
+                        resolveRound();
+                    }
+                }else{
+                    net.send({t:'ans',ans:null,time:0});
+                }
+            }
+        }
+    }
+
+    requestAnimationFrame(loop);
+}
+
+function nextQuestion(){
+    if(!game||game.over)return;
+    const g=game;
+
+    // refill queue if exhausted
+    if(g.qi>=g.questionQueue.length){
+        const tenses=PHASE_TENSES[g.phase];
+        const filtered=ALL_Q.filter(q=>tenses.indexOf(q.t)>=0);
+        g.questionQueue=shuffle(filtered);
+        g.qi=0;
+    }
+
+    const q=g.questionQueue[g.qi];
+    g.qi++;
+    g.round++;
+
+    if(isSolo){
+        showQuestion(q);
+    }else if(isHost){
+        // generate options
+        const distractors=getDistractors(q.v,q.c,3);
+        const opts=shuffle([q.c,...distractors]);
+        // send to client
+        net.send({t:'q',q:{s:q.s,e:q.e,c:q.c,v:q.v,t:q.t},opts,round:g.round});
+        showQuestion(q);
+        // override opts to match what we sent
+        rebuildAnswerGrid(q,opts);
+    }
+}
+
+function rebuildAnswerGrid(q,opts){
+    const g=game;
+    g.currentOpts=opts;
+    const grid=$('answer-grid');
+    grid.innerHTML='';
+    grid.style.display='grid';
+    const tc={hab:'#22c55e',cont:'#3b82f6',fut:'#f59e0b',past:'#f97316',comp:'#a855f7'}[q.t]||'#334155';
+    opts.forEach((text,i)=>{
+        const btn=document.createElement('div');
+        btn.className='ans-btn';
+        btn.style.borderColor=tc+'60';
+        btn.innerHTML=text+'<div class="partner-dot"></div>';
+        btn.addEventListener('click',()=>onAnswer(text,i));
+        btn.addEventListener('touchend',e=>{e.preventDefault();onAnswer(text,i)});
+        grid.appendChild(btn);
+    });
+}
+
+function showBigMsg(text,cls){
+    const el=document.createElement('div');
+    el.className='big-msg '+cls;el.textContent=text;
+    document.body.appendChild(el);setTimeout(()=>el.remove(),900);
+}
+
+// ================================================================
+//  START / END
+// ================================================================
+function startGameplay(){
+    game=newGame();
+    game.started=true;
+    showScreen(null);
+    $('boss-bar-wrap').style.display='block';
+    $('team-bar-wrap').style.display='block';
+    $('question-area').style.display='none';
+    $('answer-grid').style.display='none';
+    $('answer-grid').innerHTML='';
+
+    setupPhase(0);
+    showPhaseBanner(0);
+    game.countdown=3.5;game.countdownPhase=4;
+}
+
+function endGame(win){
+    if(!game)return;
+    game.over=true;
+    $('question-area').style.display='none';
+    $('answer-grid').style.display='none';
+
+    if(win){
+        spawnExplosion(boss.x,boss.y,80);
+        boss.dead=true;
+        sndVictory();
+        // confetti
+        let ci=0;const civ=setInterval(()=>{spawnConfetti(20);if(++ci>6)clearInterval(civ)},300);
+    }else{
+        sndDefeat();
+        screenFlash='#ef4444';screenFlashAlpha=0.5;
+    }
+
+    if(!isSolo&&isHost){
+        net.send({t:'gameover',win,stats:{
+            hc:game.myCorrect,hw:game.myWrong,hd:game.myDmgDealt,
+            cc:game.partnerCorrect,cw:game.partnerWrong,cd:game.partnerDmgDealt,
+            rounds:game.totalRounds,phases:game.phasesCleared
+        }});
+    }
+
+    setTimeout(()=>{
+        $('boss-bar-wrap').style.display='none';
+        $('team-bar-wrap').style.display='none';
+
+        const g=game;
+        $('res-title').textContent=win?'VICTORY!':'DEFEATED';
+        $('res-title').className='res-title '+(win?'win':'lose');
+        $('res-sub').textContent=win?'The verb boss has been vanquished!':'The boss overwhelmed your team.';
+
+        let stats='';
+        if(isSolo){
+            const acc=g.totalRounds>0?Math.round(g.myCorrect/g.totalRounds*100):0;
+            stats=`
+                <div class="res-row"><span>Total Rounds</span><span>${g.totalRounds}</span></div>
+                <div class="res-row"><span>Correct</span><span style="color:#22c55e">${g.myCorrect}</span></div>
+                <div class="res-row"><span>Wrong</span><span style="color:#ef4444">${g.myWrong}</span></div>
+                <div class="res-row"><span>Accuracy</span><span>${acc}%</span></div>
+                <div class="res-row"><span>Phases Cleared</span><span style="color:#f59e0b">${g.phasesCleared} / 4</span></div>
+                <div class="res-row"><span>Boss Damage</span><span style="color:#a855f7">${g.myDmgDealt}</span></div>`;
+        }else{
+            const myAcc=g.totalRounds>0?Math.round(g.myCorrect/g.totalRounds*100):0;
+            const pAcc=g.totalRounds>0?Math.round(g.partnerCorrect/g.totalRounds*100):0;
+            stats=`
+                <div class="res-row"><span>Total Rounds</span><span>${g.totalRounds}</span></div>
+                <div class="res-row"><span>Phases Cleared</span><span style="color:#f59e0b">${g.phasesCleared} / 4</span></div>
+                <div style="font-weight:700;margin:8px 0 4px;color:#22c55e">${myName}</div>
+                <div class="res-row"><span>Correct</span><span style="color:#22c55e">${g.myCorrect}</span></div>
+                <div class="res-row"><span>Wrong</span><span style="color:#ef4444">${g.myWrong}</span></div>
+                <div class="res-row"><span>Accuracy</span><span>${myAcc}%</span></div>
+                <div class="res-row"><span>Damage Dealt</span><span style="color:#a855f7">${g.myDmgDealt}</span></div>
+                <div style="font-weight:700;margin:8px 0 4px;color:#3b82f6">${opName}</div>
+                <div class="res-row"><span>Correct</span><span style="color:#22c55e">${g.partnerCorrect}</span></div>
+                <div class="res-row"><span>Wrong</span><span style="color:#ef4444">${g.partnerWrong}</span></div>
+                <div class="res-row"><span>Accuracy</span><span>${pAcc}%</span></div>
+                <div class="res-row"><span>Damage Dealt</span><span style="color:#a855f7">${g.partnerDmgDealt}</span></div>`;
+        }
+        $('res-stats').innerHTML=stats;
+        showScreen('results');
+    },1500);
+}
+
+// ================================================================
+//  NETWORKING HANDLERS
+// ================================================================
+function hostMsg(msg){
+    if(!msg||!msg.t)return;
+    switch(msg.t){
+        case 'join':break;
+        case 'hello':
+            opName=msg.name||'Player 2';
+            net.send({t:'welcome',name:myName});
+            renderLobby();
+            $('btn-start').style.display='block';
+            $('lobby-status').textContent=opName+' joined!';
+            break;
+        case 'leave':
+            opName='';renderLobby();
+            $('btn-start').style.display='none';
+            $('lobby-status').textContent='Teammate left.';
+            break;
+        case 'ans':
+            if(game&&game.currentQ){
+                game.partnerAnswer=msg.ans;
+                game.partnerTime=msg.time||0;
+                // show partner answered indicator
+                showPartnerAnswered();
+                // if host also answered or timed out, resolve
+                if(game.myAnswer!==null||game.timerLeft<=0){
+                    resolveRound();
+                }
+            }
+            break;
+        case 'want-rematch':
+            doStart();
+            break;
+    }
+}
+
+function clientMsg(msg){
+    if(!msg||!msg.t)return;
+    switch(msg.t){
+        case 'welcome':
+            opName=msg.name||'Host';
+            renderLobby();
+            break;
+        case 'go':
+            opName=msg.name||opName;
+            startGameplay();
+            break;
+        case 'q':
+            // host sent a question
+            if(game&&game.started){
+                const q={s:msg.q.s,e:msg.q.e,c:msg.q.c,v:msg.q.v,t:msg.q.t};
+                game.round=msg.round;
+                showQuestion(q);
+                // rebuild grid with host's opts
+                rebuildAnswerGrid(q,msg.opts);
+            }
+            break;
+        case 'result':
+            // host resolved the round
+            if(game){
+                game.bossHp=msg.bossHp;
+                game.teamHp=msg.teamHp;
+                game.myCorrect=msg.cc;game.myWrong=msg.cw;game.myDmgDealt=msg.cd;
+                game.partnerCorrect=msg.hc;game.partnerWrong=msg.hw;game.partnerDmgDealt=msg.hd;
+                game.totalRounds++;
+
+                const myRight=game.myAnswer===msg.correct;
+                const partnerRight=msg.hostAns===msg.correct;
+
+                if(myRight&&partnerRight){
+                    showRoundResult('DOUBLE ATTACK!','#f59e0b','-'+msg.dmg+' Boss HP',false);
+                    sndDoubleHit();spawnProjectile('#f59e0b',true);spawnProjectile('#3b82f6',true);
+                    screenFlash='#22c55e';screenFlashAlpha=0.3;
+                    boss.hitFlash=1;boss.shakeX=(Math.random()-0.5)*25;boss.shakeY=(Math.random()-0.5)*15;
+                }else if(myRight||partnerRight){
+                    showRoundResult('HIT!','#22c55e','-'+msg.dmg+' Boss HP',false);
+                    sndHit();spawnProjectile('#22c55e',false);
+                    boss.hitFlash=1;boss.shakeX=(Math.random()-0.5)*12;boss.shakeY=(Math.random()-0.5)*8;
+                }else if(msg.teamDmg>0){
+                    showRoundResult('BOSS ATTACKS!','#ef4444','-'+msg.teamDmg+' Team HP',true);
+                    sndBossAtk();bossAttackAnim();
+                }
+
+                revealAnswers(msg.correct);
+                updateBars();
+                game.currentQ=null;
+                game.roundPause=1.5;
+
+                if(game.bossHp<=0){
+                    game.phasesCleared++;
+                }
+                if(game.teamHp<=0){
+                    game.teamHp=0;updateBars();
+                }
+            }
+            break;
+        case 'phase':
+            if(game){
+                setupPhase(msg.phase);
+                game.teamHp=msg.teamHp;
+                showPhaseBanner(msg.phase);
+                updateBars();
+                game.roundPause=2.0;
+            }
+            break;
+        case 'gameover':
+            if(game){
+                game.phasesCleared=msg.stats.phases;
+                game.totalRounds=msg.stats.rounds;
+                // for client: "my" stats are cc/cw/cd, partner is hc/hw/hd
+                game.myCorrect=msg.stats.cc;game.myWrong=msg.stats.cw;game.myDmgDealt=msg.stats.cd;
+                game.partnerCorrect=msg.stats.hc;game.partnerWrong=msg.stats.hw;game.partnerDmgDealt=msg.stats.hd;
+                endGame(msg.win);
+            }
+            break;
+        case 'closed':
+            if(game&&!game.over){game.over=true;endGame(false)}
+            showScreen('menu');
+            $('menu-status').textContent='Teammate disconnected.';
+            break;
+    }
+}
+
+function showPartnerAnswered(){
+    // just show a subtle indicator that partner answered (don't reveal which)
+    // we won't show which button - just a text flash
+}
+
+function renderLobby(){
+    const l=$('plist');l.innerHTML='';
+    const add=(n,c)=>{const li=document.createElement('li');li.innerHTML=`<span class="dot" style="background:${c}"></span>${n}`;l.appendChild(li)};
+    add(myName,'#22c55e');if(opName)add(opName,'#3b82f6');
+}
+
+function doStart(){
+    net.send({t:'go',name:myName});
+    startGameplay();
+}
+
+// ================================================================
+//  SCREEN / MENU
+// ================================================================
+function showScreen(id){['menu','lobby','results'].forEach(s=>$(s).classList.remove('active'));if(id)$(id).classList.add('active')}
+
+$('btn-solo').addEventListener('click',()=>{
+    initAudio();isSolo=true;isHost=false;myName=$('inp-name').value.trim()||'Player';
+    startGameplay();
+});
+
+$('btn-create').addEventListener('click',async()=>{
+    initAudio();myName=$('inp-name').value.trim()||'Player 1';
+    roomCode=mkCode();$('menu-status').textContent='Creating room...';
+    try{isHost=true;isSolo=false;net=new HostNet(hostMsg);await net.open(roomCode);
+        $('lobby-code').textContent=roomCode;$('btn-start').style.display='none';
+        $('lobby-status').textContent='Waiting for teammate...';renderLobby();showScreen('lobby');
+    }catch(e){$('menu-status').textContent=e.message==='code-taken'?'Code taken, retrying...':'Connection failed.';
+        if(e.message==='code-taken'){roomCode=mkCode();$('btn-create').click()}}
+});
+
+$('btn-join').addEventListener('click',async()=>{
+    initAudio();myName=$('inp-name').value.trim()||'Player 2';
+    const code=$('inp-code').value.trim().toUpperCase();
+    if(code.length<3){$('menu-status').textContent='Enter the room code.';return}
+    $('menu-status').textContent='Joining...';
+    try{isHost=false;isSolo=false;net=new ClientNet(clientMsg);await net.connect(code);roomCode=code;
+        $('lobby-code').textContent=code;$('lobby-status').textContent='Waiting for host to start...';
+        renderLobby();showScreen('lobby');net.send({t:'hello',name:myName});
+    }catch(e){$('menu-status').textContent=e.message||'Room not found.'}
+});
+
+$('btn-copy').addEventListener('click',()=>{
+    navigator.clipboard.writeText(roomCode).then(()=>{$('btn-copy').textContent='Copied!';setTimeout(()=>$('btn-copy').textContent='Copy Code',1500)});
+});
+
+$('btn-start').addEventListener('click',()=>{if(opName)doStart()});
+
+$('btn-again').addEventListener('click',()=>{
+    if(isSolo){startGameplay()}
+    else if(isHost){doStart()}
+    else{net.send({t:'want-rematch'});$('res-title').textContent='Waiting...'}
+});
+
+$('btn-menu').addEventListener('click',()=>{
+    if(net){net.close();net=null}game=null;
+    $('boss-bar-wrap').style.display='none';
+    $('team-bar-wrap').style.display='none';
+    $('question-area').style.display='none';
+    $('answer-grid').style.display='none';
+    $('answer-grid').innerHTML='';
+    showScreen('menu');$('menu-status').textContent='';
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
