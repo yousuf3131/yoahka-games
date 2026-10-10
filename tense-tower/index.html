@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tense Tower - Urdu Co-op Tower Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" defer></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh;width:100vw;user-select:none}
+        canvas{position:fixed;inset:0;z-index:0}
+
+        /* -- SCREENS -- */
+        .screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;background:rgba(15,23,42,0.96)}
+        .screen.active{display:flex}
+        .panel{background:#1e293b;border:2px solid #334155;padding:36px;width:90%;max-width:420px;text-align:center}
+        .logo{font-size:2.6em;font-weight:900;letter-spacing:-0.02em;line-height:1.1}
+        .logo span{color:#f59e0b}
+        .tagline{color:#94a3b8;margin:6px 0 24px;font-size:0.85em}
+        label{display:block;text-align:left;font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px}
+        .field{width:100%;padding:10px 14px;background:#0f172a;border:2px solid #334155;color:#fff;font-family:inherit;font-size:1em;font-weight:600;outline:none;transition:border 0.15s}
+        .field:focus{border-color:#f59e0b}
+        .field::placeholder{color:#475569}
+        .btn{font-family:inherit;font-weight:700;font-size:0.9em;padding:10px 20px;border:2px solid #334155;background:transparent;color:#e2e8f0;cursor:pointer;transition:all 0.15s}
+        .btn:hover{border-color:#f59e0b;color:#fff}
+        .btn.primary{background:#f59e0b;border-color:#f59e0b;color:#0f172a}
+        .btn.primary:hover{background:#d97706}
+        .btn.big{width:100%;padding:14px;font-size:1em}
+        .divider{color:#475569;font-size:0.7em;font-weight:700;letter-spacing:0.08em;margin:16px 0;display:flex;align-items:center;gap:12px}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:#334155}
+        .join-row{display:flex;gap:8px}
+        .join-row .field{text-align:center;letter-spacing:0.2em;text-transform:uppercase}
+        .status{color:#f59e0b;font-size:0.8em;margin-top:12px;min-height:1.2em}
+        .room-box{background:#0f172a;padding:14px;margin-bottom:14px}
+        .room-box small{color:#94a3b8;font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+        .room-code{font-size:2em;font-weight:900;letter-spacing:0.2em;color:#f59e0b;margin:4px 0 8px}
+        .plist{list-style:none;margin:10px 0}
+        .plist li{padding:8px 12px;background:#0f172a;margin-bottom:4px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .plist .dot{width:10px;height:10px;flex-shrink:0}
+
+        /* -- HUD -- */
+        #hud{position:fixed;top:0;left:0;right:0;z-index:20;display:none;pointer-events:none}
+        .hud-top{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 16px}
+        .hud-height{text-align:center}
+        .hud-height-label{font-size:0.65em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.6);text-shadow:0 1px 3px rgba(0,0,0,0.5)}
+        .hud-height-val{font-size:2.4em;font-weight:900;color:#fff;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,0.5)}
+        .hud-streak{font-size:0.75em;font-weight:700;color:#f59e0b;text-shadow:0 1px 3px rgba(0,0,0,0.5);min-height:1.2em}
+        .hud-players{text-align:right;font-size:0.7em;color:rgba(255,255,255,0.7);text-shadow:0 1px 3px rgba(0,0,0,0.5)}
+        .hud-players b{color:#fff}
+
+        /* -- STABILITY BAR -- */
+        .stab-wrap{position:fixed;left:10px;top:50%;transform:translateY(-50%);z-index:20;display:none;width:28px;pointer-events:none}
+        .stab-label{font-size:0.55em;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:rgba(255,255,255,0.7);text-align:center;margin-bottom:4px;text-shadow:0 1px 3px rgba(0,0,0,0.5)}
+        .stab-bar-outer{width:20px;height:160px;background:rgba(0,0,0,0.4);border:2px solid rgba(255,255,255,0.3);margin:0 auto;position:relative;overflow:hidden}
+        .stab-bar-inner{position:absolute;bottom:0;left:0;right:0;transition:height 0.3s,background 0.3s}
+        .stab-pct{font-size:0.65em;font-weight:800;text-align:center;margin-top:4px;text-shadow:0 1px 3px rgba(0,0,0,0.5)}
+
+        /* -- QUESTION AREA -- */
+        #question-area{position:fixed;bottom:0;left:0;right:0;z-index:25;display:none;background:rgba(15,23,42,0.92);border-top:2px solid #334155;padding:10px 12px 14px}
+        .q-sentence{font-family:'Noto Nastaliq Urdu',serif;font-size:1.2em;font-weight:700;direction:rtl;line-height:2;text-align:center;margin-bottom:2px}
+        .q-blank{display:inline-block;border-bottom:2px solid #f59e0b;min-width:70px}
+        .q-english{font-size:0.78em;color:#94a3b8;text-align:center;margin-bottom:2px}
+        .q-tense{display:inline-block;font-size:0.65em;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;background:#334155;color:#94a3b8;margin-bottom:8px}
+        .q-timer{height:3px;background:#334155;margin-bottom:8px;position:relative;overflow:hidden}
+        .q-timer-bar{height:100%;background:#f59e0b;transition:width 0.2s linear}
+        .q-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+        .q-btn{font-family:'Noto Nastaliq Urdu',serif;font-size:1.1em;font-weight:700;direction:rtl;line-height:1.8;padding:10px 8px;background:rgba(255,255,255,0.95);color:#1e293b;border:2px solid #cbd5e1;cursor:pointer;transition:all 0.15s;position:relative;text-align:center}
+        .q-btn:active{transform:scale(0.97)}
+        .q-btn.correct-flash{background:#22c55e;border-color:#22c55e;color:#fff}
+        .q-btn.wrong-flash{background:#ef4444;border-color:#ef4444;color:#fff}
+        .q-btn.disabled{pointer-events:none;opacity:0.6}
+        .q-btn .partner-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:#3b82f6;display:none}
+
+        /* -- CENTER MESSAGES -- */
+        .big-msg{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:30;font-size:3.5em;font-weight:900;pointer-events:none;animation:pop-msg 1s ease forwards;text-shadow:0 3px 12px rgba(0,0,0,0.4)}
+        .big-msg.go{color:#22c55e}
+        .big-msg.num{color:#fff}
+        .big-msg.perfect{color:#f59e0b;font-size:2.2em}
+        .big-msg.placed{color:#22c55e;font-size:2em}
+        .big-msg.shake-msg{color:#ef4444;font-size:2em}
+        .big-msg.milestone{color:#f59e0b;font-size:2.5em}
+        @keyframes pop-msg{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}40%{transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-60%) scale(1)}}
+
+        /* -- RESULTS -- */
+        .res-title{font-size:2em;font-weight:900;margin-bottom:6px}
+        .res-title.collapse{color:#ef4444}
+        .res-title.record{color:#f59e0b}
+        .res-sub{color:#94a3b8;margin-bottom:16px}
+        .res-height{font-size:4em;font-weight:900;color:#fff;line-height:1;margin-bottom:4px}
+        .res-height-label{font-size:0.8em;color:#94a3b8;margin-bottom:16px}
+        .new-record{color:#f59e0b;font-weight:800;font-size:1.1em;margin-bottom:12px;animation:pulse-record 0.6s ease infinite alternate}
+        @keyframes pulse-record{from{opacity:0.7;transform:scale(1)}to{opacity:1;transform:scale(1.05)}}
+        .res-stats{text-align:left;margin-bottom:20px}
+        .res-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #334155;font-size:0.85em}
+        .res-btns{display:flex;gap:8px;justify-content:center}
+        .back-link{position:fixed;top:12px;left:12px;color:#94a3b8;text-decoration:none;font-weight:600;font-size:0.8em;z-index:60;text-shadow:0 1px 3px rgba(0,0,0,0.3)}
+        .back-link:hover{color:#fff}
+
+        @media(max-width:500px){
+            .logo{font-size:2em}
+            .panel{padding:24px 18px}
+            .q-sentence{font-size:1em}
+            .q-btn{font-size:0.95em;padding:8px 6px}
+            .hud-height-val{font-size:1.8em}
+        }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a href="/" class="back-link">&larr; Home</a>
+
+<!-- MENU -->
+<div id="menu" class="screen active">
+    <div class="panel">
+        <div class="logo">TENSE<span>TOWER</span></div>
+        <p class="tagline">Stack your knowledge -- how high can you build?</p>
+        <div style="margin-bottom:14px">
+            <label for="inp-name">Your name</label>
+            <input class="field" id="inp-name" maxlength="14" autocomplete="nickname" placeholder="e.g. Ali">
+        </div>
+        <button class="btn primary big" id="btn-solo">Play Solo</button>
+        <div class="divider">OR BUILD WITH A FRIEND</div>
+        <button class="btn big" id="btn-create" style="margin-bottom:8px">Create Room</button>
+        <div class="join-row">
+            <input class="field" id="inp-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+            <button class="btn" id="btn-join">Join</button>
+        </div>
+        <div class="status" id="menu-status"></div>
+    </div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="screen">
+    <div class="panel">
+        <div class="room-box">
+            <small>Room Code</small>
+            <div class="room-code" id="lobby-code">-----</div>
+            <button class="btn" id="btn-copy">Copy Code</button>
+        </div>
+        <div style="font-weight:700;margin-bottom:6px">Builders</div>
+        <ul class="plist" id="plist"></ul>
+        <button class="btn primary big" id="btn-start" style="display:none;margin-top:10px">Start Building</button>
+        <div class="status" id="lobby-status">Waiting for partner...</div>
+    </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+    <div class="hud-top">
+        <div style="min-width:60px"></div>
+        <div class="hud-height">
+            <div class="hud-height-label">HEIGHT</div>
+            <div class="hud-height-val" id="height-val">0</div>
+            <div class="hud-streak" id="streak-val"></div>
+        </div>
+        <div>
+            <div class="hud-players" id="hud-players"></div>
+        </div>
+    </div>
+</div>
+
+<!-- STABILITY BAR -->
+<div class="stab-wrap" id="stab-wrap">
+    <div class="stab-label">Stability</div>
+    <div class="stab-bar-outer">
+        <div class="stab-bar-inner" id="stab-bar"></div>
+    </div>
+    <div class="stab-pct" id="stab-pct">100%</div>
+</div>
+
+<!-- QUESTION AREA -->
+<div id="question-area">
+    <div class="q-sentence" id="q-sentence"></div>
+    <div class="q-english" id="q-english"></div>
+    <div style="text-align:center"><span class="q-tense" id="q-tense"></span></div>
+    <div class="q-timer"><div class="q-timer-bar" id="q-timer-bar"></div></div>
+    <div class="q-grid" id="q-grid"></div>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="screen">
+    <div class="panel">
+        <div class="res-title" id="res-title">TOWER COLLAPSED!</div>
+        <div class="res-sub" id="res-sub"></div>
+        <div class="res-height" id="res-height">0</div>
+        <div class="res-height-label">blocks tall</div>
+        <div class="new-record" id="new-record" style="display:none">NEW RECORD!</div>
+        <div class="res-stats" id="res-stats"></div>
+        <div class="res-btns">
+            <button class="btn primary" id="btn-again">Build Again</button>
+            <button class="btn" id="btn-menu">Menu</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================================================================
+//  HELPERS
+// ================================================================
+const $ = id => document.getElementById(id);
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+// ================================================================
+//  AUDIO
+// ================================================================
+const AudioCtx=window.AudioContext||window.webkitAudioContext;
+let actx;
+function initAudio(){if(!actx)try{actx=new AudioCtx()}catch(e){}}
+function tone(f,d,t,v){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v||0.1,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+d);o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}
+function sndThunk(){tone(120,0.15,'sine',0.12);tone(180,0.08,'triangle',0.06)}
+function sndSparkle(){tone(1200,0.08,'sine',0.06);setTimeout(()=>tone(1500,0.06,'sine',0.05),40);setTimeout(()=>tone(1800,0.06,'sine',0.04),80)}
+function sndPerfect(){sndThunk();setTimeout(sndSparkle,60);setTimeout(()=>{tone(880,0.1,'sine',0.08);tone(1100,0.08,'sine',0.06)},120)}
+function sndRumble(){for(let i=0;i<5;i++)setTimeout(()=>tone(60+Math.random()*40,0.12,'sawtooth',0.05),i*30)}
+function sndCollapse(){for(let i=0;i<12;i++)setTimeout(()=>tone(200-i*15,0.2,'sawtooth',0.04+i*0.005),i*80)}
+function sndMilestone(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.12,'sine',0.09),i*80))}
+function sndCount(){tone(440,0.12,'sine',0.08)}
+function sndGo(){tone(880,0.2,'sine',0.12)}
+
+// ================================================================
+//  NETWORKING (from Yoahka pattern)
+// ================================================================
+const NET_PREFIX='urdu-tt-';
+const CHARS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const RELAYS=['wss://broker.emqx.io:8084/mqtt','wss://test.mosquitto.org:8081/mqtt'];
+const ICE_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]};
+const mkCode=()=>Array.from({length:5},()=>CHARS[Math.floor(Math.random()*CHARS.length)]).join('');
+const topicRoot=c=>`urdu-tt/v1/${c}`;
+const rndId=()=>'r'+Math.random().toString(36).slice(2,12);
+function loadMqtt(){if(window.mqtt)return Promise.resolve(true);return new Promise(r=>{let n=0;const iv=setInterval(()=>{if(window.mqtt||++n>40){clearInterval(iv);r(!!window.mqtt)}},200)})}
+function relayConn(url){return new Promise((res,rej)=>{const c=window.mqtt.connect(url,{connectTimeout:6000,reconnectPeriod:2000,clean:true,clientId:`tt_${Math.random().toString(16).slice(2,12)}`});c.on('error',()=>{});const t=setTimeout(()=>{c.end(true);rej()},7000);c.once('connect',()=>{clearTimeout(t);res(c)})})}
+function parse(b){try{return JSON.parse(b.toString())}catch(e){return null}}
+
+class HostNet{
+    constructor(cb){this.cb=cb;this.conn=null;this.relayPeer=null;this.relays=[];}
+    open(code){return new Promise((res,rej)=>{if(!window.Peer)return rej(new Error('PeerJS not loaded'));const p=new window.Peer(NET_PREFIX+code,{debug:0,config:ICE_CFG});this.peer=p;const t=setTimeout(()=>rej(new Error('timeout')),12000);p.on('open',()=>{clearTimeout(t);this.startRelays(code);res()});p.on('error',e=>{clearTimeout(t);rej(new Error(e.type==='unavailable-id'?'code-taken':e.type))});p.on('connection',c=>{c.on('open',()=>{this.conn=c;this.cb({t:'join'})});c.on('data',d=>this.cb(d));const g=()=>{if(this.conn===c){this.conn=null;this.cb({t:'leave'})}};c.on('close',g);c.on('error',g)});p.on('disconnected',()=>{try{if(!p.destroyed)p.reconnect()}catch(e){}})})}
+    async startRelays(code){this.root=topicRoot(code);if(!(await loadMqtt()))return;for(const url of RELAYS){relayConn(url).then(client=>{if(this.closed)return client.end(true);this.relays.push(client);client.subscribe(`${this.root}/h`,{qos:1});client.on('message',(_,buf)=>{const env=parse(buf);if(!env||!env.f||!env.m)return;if(this.conn)return;if(env.m.t==='bye'){if(this.relayPeer===env.f){this.relayPeer=null;this.cb({t:'leave'})}return}if(!this.relayPeer){if(env.m.t!=='hello')return;this.relayPeer=env.f}if(env.m.t!=='ping')this.cb(env.m)})}).catch(()=>{})}}
+    send(msg){if(this.conn&&this.conn.open)this.conn.send(msg);else if(this.relayPeer&&this.relays.length){const p=JSON.stringify(msg);this.relays.forEach(c=>c.publish(`${this.root}/all`,p,{qos:1}))}}
+    close(){this.closed=true;if(this.relayPeer&&this.relays.length){const p=JSON.stringify({t:'closed'});this.relays.forEach(c=>c.publish(`${this.root}/all`,p,{qos:1}))}const rs=this.relays;setTimeout(()=>rs.forEach(c=>c.end(true)),300);if(this.peer)this.peer.destroy();this.conn=null}
+}
+class ClientNet{
+    constructor(cb){this.cb=cb}
+    async connect(code){this.root=topicRoot(code);try{return await this.connectDirect(code)}catch(e){if(e.definitive)throw e}return this.connectRelay()}
+    connectDirect(code){return new Promise((res,rej)=>{if(!window.Peer)return rej(new Error('no peer'));const p=new window.Peer({debug:0,config:ICE_CFG});this.peer=p;let done=false;const fail=(m,def)=>{if(done)return;done=true;clearTimeout(t);const e=new Error(m);e.definitive=!!def;rej(e)};const t=setTimeout(()=>fail('timeout'),12000);p.on('open',id=>{this.id=id;const c=p.connect(NET_PREFIX+code,{reliable:true,serialization:'json'});c.on('open',()=>{if(done)return c.close();done=true;clearTimeout(t);this.conn=c;this.mode='direct';res(id)});c.on('data',d=>this.cb(d));c.on('close',()=>{if(this.conn===c&&!this.closing)this.cb({t:'closed'})});setTimeout(()=>fail('slow'),8000)});p.on('error',e=>{if(e.type==='peer-unavailable')fail('No room found.',true);else fail(e.type)})})}
+    async connectRelay(){if(this.peer){try{this.peer.destroy()}catch(e){}this.peer=null}if(!this.id)this.id=rndId();if(!(await loadMqtt()))throw new Error('Cannot connect');for(const url of RELAYS){let client;try{client=await relayConn(url);await new Promise((r,j)=>client.subscribe([`${this.root}/c/${this.id}`,`${this.root}/all`],{qos:1},e=>(e?j(e):r())))}catch(e){if(client)client.end(true);continue}this.relay=client;this.mode='relay';this.lastHeard=Date.now();client.on('message',(_,buf)=>{const m=parse(buf);if(!m)return;this.lastHeard=Date.now();if(m.t==='hb')return;if(m.t==='closed'){if(!this.closing)this.cb({t:'closed'});return}this.cb(m)});this.pingTimer=setInterval(()=>{this.publish({t:'ping'},0);if(Date.now()-this.lastHeard>15000&&!this.closing){clearInterval(this.pingTimer);this.cb({t:'closed'})}},3000);return this.id}throw new Error('Cannot connect')}
+    publish(msg,qos){this.relay.publish(`${this.root}/h`,JSON.stringify({f:this.id,m:msg}),{qos})}
+    send(msg){if(this.mode==='direct'){if(this.conn&&this.conn.open)this.conn.send(msg)}else if(this.mode==='relay')this.publish(msg,1)}
+    close(){this.closing=true;clearInterval(this.pingTimer);if(this.relay){try{this.publish({t:'bye'},0)}catch(e){}const r=this.relay;setTimeout(()=>r.end(true),300)}if(this.peer)this.peer.destroy()}
+}
+
+// ================================================================
+//  VERB DATA & QUESTIONS
+// ================================================================
+const V={
+    eat:{hab:['کھاتا ہے','کھاتی ہے','کھاتے ہیں'],cont:['کھا رہا ہے','کھا رہی ہے','کھا رہے ہیں'],fut:['کھائے گا','کھائے گی','کھائیں گے'],past:['کھایا','کھائی','کھائے'],comp:['کھا لیا','کھا لی','کھا لیے']},
+    write:{hab:['لکھتا ہے','لکھتی ہے','لکھتے ہیں'],cont:['لکھ رہا ہے','لکھ رہی ہے','لکھ رہے ہیں'],fut:['لکھے گا','لکھے گی','لکھیں گے'],past:['لکھا','لکھی','لکھے'],comp:['لکھ لیا','لکھ لی','لکھ لیے']},
+    read:{hab:['پڑھتا ہے','پڑھتی ہے','پڑھتے ہیں'],cont:['پڑھ رہا ہے','پڑھ رہی ہے','پڑھ رہے ہیں'],fut:['پڑھے گا','پڑھے گی','پڑھیں گے'],past:['پڑھا','پڑھی','پڑھے'],comp:['پڑھ لیا','پڑھ لی','پڑھ لیے']},
+    drink:{hab:['پیتا ہے','پیتی ہے','پیتے ہیں'],cont:['پی رہا ہے','پی رہی ہے','پی رہے ہیں'],fut:['پیے گا','پیے گی','پیئیں گے'],past:['پیا','پی','پیے'],comp:['پی لیا','پی لی','پی لیے']},
+    run:{hab:['دوڑتا ہے','دوڑتی ہے','دوڑتے ہیں'],cont:['دوڑ رہا ہے','دوڑ رہی ہے','دوڑ رہے ہیں'],fut:['دوڑے گا','دوڑے گی','دوڑیں گے'],past:['دوڑا','دوڑی','دوڑے']},
+    sleep:{hab:['سوتا ہے','سوتی ہے','سوتے ہیں'],cont:['سو رہا ہے','سو رہی ہے','سو رہے ہیں'],fut:['سوئے گا','سوئے گی','سوئیں گے'],past:['سویا','سوئی','سوئے']},
+    understand:{hab:['سمجھتا ہے','سمجھتی ہے','سمجھتے ہیں'],cont:['سمجھ رہا ہے','سمجھ رہی ہے','سمجھ رہے ہیں'],fut:['سمجھے گا','سمجھے گی','سمجھیں گے'],past:['سمجھا','سمجھی','سمجھے'],comp:['سمجھ لیا','سمجھ لی','سمجھ لیے']},
+    buy:{hab:['خریدتا ہے','خریدتی ہے','خریدتے ہیں'],cont:['خرید رہا ہے','خرید رہی ہے','خرید رہے ہیں'],fut:['خریدے گا','خریدے گی','خریدیں گے'],past:['خریدا','خریدی','خریدے'],comp:['خرید لیا','خرید لی','خرید لیے']},
+    go:{hab:['جاتا ہے','جاتی ہے','جاتے ہیں'],cont:['جا رہا ہے','جا رہی ہے','جا رہے ہیں'],fut:['جائے گا','جائے گی','جائیں گے'],past:['گیا','گئی','گئے']},
+    come:{hab:['آتا ہے','آتی ہے','آتے ہیں'],cont:['آ رہا ہے','آ رہی ہے','آ رہے ہیں'],fut:['آئے گا','آئے گی','آئیں گے'],past:['آیا','آئی','آئے']},
+    cook:{hab:['پکاتا ہے','پکاتی ہے','پکاتے ہیں'],cont:['پکا رہا ہے','پکا رہی ہے','پکا رہے ہیں'],fut:['پکائے گا','پکائے گی','پکائیں گے'],past:['پکایا','پکائی','پکائے'],comp:['پکا لیا','پکا لی','پکا لیے']},
+    wash:{hab:['دھوتا ہے','دھوتی ہے','دھوتے ہیں'],cont:['دھو رہا ہے','دھو رہی ہے','دھو رہے ہیں'],fut:['دھوئے گا','دھوئے گی','دھوئیں گے'],past:['دھویا','دھوئی','دھوئے'],comp:['دھو لیا','دھو لی','دھو لیے']},
+};
+
+const TENSE_LABELS={hab:'Habitual',cont:'Continuous',fut:'Future',past:'Simple Past',comp:'Compound'};
+const TENSE_COLORS={hab:'#22c55e',cont:'#3b82f6',fut:'#f59e0b',past:'#f97316',comp:'#a855f7'};
+const ALL_Q=[
+    {s:'لڑکا روز کھانا ___۔',e:'The boy eats food daily.',c:'کھاتا ہے',v:'eat',t:'hab'},
+    {s:'لڑکی ہمیشہ کتاب ___۔',e:'The girl always reads.',c:'پڑھتی ہے',v:'read',t:'hab'},
+    {s:'بچے روز باہر ___۔',e:'The children run outside daily.',c:'دوڑتے ہیں',v:'run',t:'hab'},
+    {s:'وہ (M) ہمیشہ سبق ___۔',e:'He always understands.',c:'سمجھتا ہے',v:'understand',t:'hab'},
+    {s:'وہ (F) روز چائے ___۔',e:'She drinks tea daily.',c:'پیتی ہے',v:'drink',t:'hab'},
+    {s:'لڑکا ہمیشہ ___۔',e:'The boy always runs.',c:'دوڑتا ہے',v:'run',t:'hab'},
+    {s:'لڑکی روز جلدی ___۔',e:'The girl sleeps early daily.',c:'سوتی ہے',v:'sleep',t:'hab'},
+    {s:'بچے روز خط ___۔',e:'The children write daily.',c:'لکھتے ہیں',v:'write',t:'hab'},
+    {s:'وہ (M) روز سبزی ___۔',e:'He buys vegetables daily.',c:'خریدتا ہے',v:'buy',t:'hab'},
+    {s:'لڑکی ہمیشہ کھانا ___۔',e:'The girl always cooks.',c:'پکاتی ہے',v:'cook',t:'hab'},
+    {s:'لڑکا ابھی کھانا ___۔',e:'The boy is eating now.',c:'کھا رہا ہے',v:'eat',t:'cont'},
+    {s:'لڑکی ابھی کتاب ___۔',e:'The girl is reading now.',c:'پڑھ رہی ہے',v:'read',t:'cont'},
+    {s:'بچے ابھی باہر ___۔',e:'The children are running now.',c:'دوڑ رہے ہیں',v:'run',t:'cont'},
+    {s:'وہ (M) ابھی خط ___۔',e:'He is writing now.',c:'لکھ رہا ہے',v:'write',t:'cont'},
+    {s:'وہ (F) ابھی چائے ___۔',e:'She is drinking tea now.',c:'پی رہی ہے',v:'drink',t:'cont'},
+    {s:'لڑکا ابھی ___۔',e:'The boy is sleeping now.',c:'سو رہا ہے',v:'sleep',t:'cont'},
+    {s:'لڑکی ابھی کھانا ___۔',e:'The girl is cooking now.',c:'پکا رہی ہے',v:'cook',t:'cont'},
+    {s:'لڑکا ابھی سکول ___۔',e:'The boy is going to school.',c:'جا رہا ہے',v:'go',t:'cont'},
+    {s:'لڑکا کل کھانا ___۔',e:'The boy will eat tomorrow.',c:'کھائے گا',v:'eat',t:'fut'},
+    {s:'لڑکی کل کتاب ___۔',e:'The girl will read tomorrow.',c:'پڑھے گی',v:'read',t:'fut'},
+    {s:'بچے کل باہر ___۔',e:'The children will run tomorrow.',c:'دوڑیں گے',v:'run',t:'fut'},
+    {s:'وہ (M) کل خط ___۔',e:'He will write tomorrow.',c:'لکھے گا',v:'write',t:'fut'},
+    {s:'وہ (F) کل چائے ___۔',e:'She will drink tea tomorrow.',c:'پیے گی',v:'drink',t:'fut'},
+    {s:'لڑکا کل جلدی ___۔',e:'The boy will sleep early.',c:'سوئے گا',v:'sleep',t:'fut'},
+    {s:'لڑکی کل کھانا ___۔',e:'The girl will cook tomorrow.',c:'پکائے گی',v:'cook',t:'fut'},
+    {s:'وہ (M) کل سکول ___۔',e:'He will go to school.',c:'جائے گا',v:'go',t:'fut'},
+    {s:'وہ (F) کل گھر ___۔',e:'She will come home.',c:'آئے گی',v:'come',t:'fut'},
+    {s:'لڑکے نے کھانا ___۔',e:'The boy ate food.',c:'کھایا',v:'eat',t:'past'},
+    {s:'لڑکی نے کتاب ___۔',e:'The girl read the book.',c:'پڑھی',v:'read',t:'past'},
+    {s:'اس نے خط ___۔',e:'He/she wrote a letter.',c:'لکھا',v:'write',t:'past'},
+    {s:'لڑکا سکول ___۔',e:'The boy went to school.',c:'گیا',v:'go',t:'past'},
+    {s:'لڑکی گھر ___۔',e:'The girl came home.',c:'آئی',v:'come',t:'past'},
+    {s:'بچے باہر ___۔',e:'The children ran outside.',c:'دوڑے',v:'run',t:'past'},
+    {s:'وہ (F) جلدی ___۔',e:'She slept early.',c:'سوئی',v:'sleep',t:'past'},
+    {s:'تم نے سبق ___۔',e:'You understood the lesson.',c:'سمجھا',v:'understand',t:'past'},
+    {s:'لڑکی نے کھانا ___۔',e:'The girl cooked food.',c:'پکایا',v:'cook',t:'past'},
+    {s:'میں نے کھانا ___۔',e:'I finished eating.',c:'کھا لیا',v:'eat',t:'comp'},
+    {s:'اس نے کتاب ___۔',e:'He finished reading.',c:'پڑھ لی',v:'read',t:'comp'},
+    {s:'لڑکی نے خط ___۔',e:'She finished writing.',c:'لکھ لیا',v:'write',t:'comp'},
+    {s:'ہم نے چائے ___۔',e:'We finished drinking tea.',c:'پی لی',v:'drink',t:'comp'},
+    {s:'تم نے سبق ___۔',e:'You fully understood.',c:'سمجھ لیا',v:'understand',t:'comp'},
+    {s:'انہوں نے کپڑے ___۔',e:'They finished washing.',c:'دھو لیے',v:'wash',t:'comp'},
+    {s:'لڑکے نے کھانا ___۔',e:'The boy finished cooking.',c:'پکا لیا',v:'cook',t:'comp'},
+    {s:'میں نے روٹی ___۔',e:'I finished eating bread.',c:'کھا لی',v:'eat',t:'comp'},
+];
+
+function getDistractors(vk,correct,n){
+    const v=V[vk];if(!v)return[];const all=[];
+    for(const t of['hab','cont','fut','past','comp']){if(!v[t])continue;for(const f of v[t])if(f!==correct&&all.indexOf(f)<0)all.push(f)}
+    return shuffle(all).slice(0,n);
+}
+
+// ================================================================
+//  CANVAS SETUP
+// ================================================================
+const cvs=$('c'), ctx=cvs.getContext('2d');
+let W,H;
+function resize(){W=cvs.width=innerWidth;H=cvs.height=innerHeight}
+resize(); addEventListener('resize',resize);
+
+// ================================================================
+//  CLOUDS
+// ================================================================
+const clouds=[
+    {x:0.15,y:0.12,r:40,speed:6},
+    {x:0.55,y:0.08,r:50,speed:4},
+    {x:0.82,y:0.18,r:35,speed:8},
+];
+function drawCloud(cx,cy,r,alpha){
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx-r*0.7,cy+r*0.2,r*0.65,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+r*0.7,cy+r*0.15,r*0.7,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+r*0.3,cy-r*0.3,r*0.5,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+}
+
+// ================================================================
+//  PARTICLES
+// ================================================================
+let particles=[];
+function spawnSparkles(x,y,n,color){
+    for(let i=0;i<n;i++){
+        const angle=Math.random()*Math.PI*2;
+        const speed=60+Math.random()*120;
+        particles.push({
+            x,y,
+            vx:Math.cos(angle)*speed,
+            vy:Math.sin(angle)*speed-50,
+            life:0.5+Math.random()*0.5,
+            color:color||'#f59e0b',
+            r:1.5+Math.random()*2.5,
+            type:'sparkle'
+        });
+    }
+}
+
+// ================================================================
+//  GAME STATE
+// ================================================================
+let net=null,isHost=false,isSolo=false,myName='',opName='',roomCode='';
+const BLOCK_W=80, BLOCK_H=30;
+const ROUND_TIME=10000; // 10 seconds
+
+let game=null;
+let bestHeight=0;try{bestHeight=parseInt(localStorage.getItem('tt-best')||'0')||0}catch(e){}
+
+function newGame(){
+    return{
+        started:false,
+        blocks:[], // {x, y, color, text, tense, placed:bool, dropY, settled}
+        stability:100,
+        height:0, // number of blocks
+        streak:0,
+        bestStreak:0,
+        correct:0,
+        wrong:0,
+        totalRounds:0,
+        over:false,
+        collapsed:false,
+        // question state
+        questions:shuffle(ALL_Q.slice()),
+        qi:0,
+        currentQ:null,
+        roundActive:false,
+        roundTimer:0,
+        myAnswer:null,
+        partnerAnswer:null, // for multiplayer
+        waitingResult:false,
+        roundPause:0,
+        // animation
+        cameraY:0,
+        targetCameraY:0,
+        shakeAmt:0,
+        shakeTime:0,
+        wobbleTime:0,
+        // collapse animation
+        collapseBlocks:[], // {x,y,w,h,color,text,vx,vy,rot,vrot}
+        collapseTime:0,
+        // block drop animation
+        droppingBlock:null, // {x, targetY, y, vy, bounces, color, text, tense, settled}
+        // timing
+        lastStabRecover:0,
+        // multiplayer results tracking
+        hostCorrect:0,
+        hostWrong:0,
+        clientCorrect:0,
+        clientWrong:0,
+    };
+}
+
+// ================================================================
+//  TOWER DRAWING
+// ================================================================
+const GROUND_H=50;
+
+function getBlockX(i){
+    // slight random offset seeded by index
+    const seed=Math.sin(i*127.1+i*311.7)*43758.5453;
+    const offset=(seed-Math.floor(seed)-0.5)*16;
+    return W/2-BLOCK_W/2+offset;
+}
+
+function getBlockY(i){
+    // blocks stack from ground up
+    return H-GROUND_H-BLOCK_H*(i+1);
+}
+
+function drawTower(dt){
+    const g=game;if(!g)return;
+
+    // Camera offset: keep top of tower visible
+    if(g.height>0){
+        const topBlockY=getBlockY(g.height-1);
+        const viewTarget=H*0.35; // we want top block at 35% from top
+        if(topBlockY-g.cameraY<viewTarget){
+            g.targetCameraY=topBlockY-viewTarget;
+        }
+    }else{
+        g.targetCameraY=0;
+    }
+    g.cameraY+=(g.targetCameraY-g.cameraY)*3*dt;
+
+    ctx.save();
+
+    // Shake
+    let shakeX=0,shakeY=0;
+    if(g.shakeTime>0){
+        g.shakeTime-=dt;
+        const intensity=g.shakeAmt*Math.min(1,g.shakeTime*4);
+        shakeX=(Math.random()-0.5)*intensity*20;
+        shakeY=(Math.random()-0.5)*intensity*10;
+    }
+
+    // Wobble from low stability
+    if(g.stability<50&&!g.collapsed){
+        g.wobbleTime+=dt;
+        const wobbleIntensity=(50-g.stability)/50;
+        shakeX+=Math.sin(g.wobbleTime*3)*wobbleIntensity*8;
+    }
+
+    ctx.translate(shakeX,shakeY);
+
+    // Draw placed blocks
+    g.blocks.forEach((b,i)=>{
+        const screenY=b.y-g.cameraY;
+        if(screenY>H+50||screenY<-80)return;
+        drawBlock(b.x,screenY,b.color,b.text);
+    });
+
+    // Draw dropping block
+    if(g.droppingBlock){
+        const db=g.droppingBlock;
+        const screenY=db.y-g.cameraY;
+        drawBlock(db.x,screenY,db.color,db.text);
+    }
+
+    // Draw collapse blocks
+    if(g.collapsed){
+        g.collapseBlocks.forEach(b=>{
+            ctx.save();
+            ctx.translate(b.x+BLOCK_W/2,b.y-g.cameraY+BLOCK_H/2);
+            ctx.rotate(b.rot);
+            ctx.fillStyle=b.color;
+            ctx.fillRect(-BLOCK_W/2,-BLOCK_H/2,BLOCK_W,BLOCK_H);
+            ctx.restore();
+        });
+    }
+
+    ctx.restore();
+}
+
+function drawBlock(x,y,color,text){
+    ctx.fillStyle=color;
+    ctx.fillRect(x,y,BLOCK_W,BLOCK_H);
+    // darker bottom edge
+    ctx.fillStyle='rgba(0,0,0,0.15)';
+    ctx.fillRect(x,y+BLOCK_H-4,BLOCK_W,4);
+    // lighter top edge
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.fillRect(x,y,BLOCK_W,3);
+    // text on block
+    if(text){
+        ctx.save();
+        ctx.font='bold 9px "Noto Nastaliq Urdu",serif';
+        ctx.fillStyle='rgba(255,255,255,0.9)';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(text,x+BLOCK_W/2,y+BLOCK_H/2+2,BLOCK_W-6);
+        ctx.restore();
+    }
+}
+
+// ================================================================
+//  BACKGROUND DRAWING
+// ================================================================
+function drawBackground(dt){
+    const g=game;
+    const heightFactor=g?Math.min(g.height/40,1):0;
+
+    // Sky gradient - gets darker as tower grows taller
+    const sky=ctx.createLinearGradient(0,0,0,H);
+    const r1=0x87-Math.floor(heightFactor*0x50);
+    const g1=0xCE-Math.floor(heightFactor*0x60);
+    const b1=0xEB-Math.floor(heightFactor*0x50);
+    sky.addColorStop(0,`rgb(${r1},${g1},${b1})`);
+    sky.addColorStop(0.7,'#c9e4f5');
+    sky.addColorStop(1,'#e8f4fd');
+    ctx.fillStyle=sky;
+    ctx.fillRect(0,0,W,H);
+
+    // Clouds
+    const now=Date.now()/1000;
+    clouds.forEach(cl=>{
+        const cx=((cl.x*W+now*cl.speed)%(W+200))-100;
+        const cy=cl.y*H;
+        drawCloud(cx,cy,cl.r,0.5-heightFactor*0.2);
+    });
+
+    // Ground (scrolls with camera)
+    if(g){
+        const groundTop=H-GROUND_H-g.cameraY;
+        if(groundTop<H){
+            ctx.fillStyle='#22c55e';
+            ctx.fillRect(0,groundTop,W,GROUND_H+g.cameraY+200);
+            // grass line
+            ctx.fillStyle='#16a34a';
+            ctx.fillRect(0,groundTop,W,4);
+            // grass tufts
+            ctx.fillStyle='#15803d';
+            for(let x=0;x<W;x+=12){
+                const h=3+Math.sin(x*0.3)*3;
+                ctx.fillRect(x,groundTop-h,2,h);
+            }
+        }
+    }
+
+    // Particles
+    particles.forEach(p=>{
+        p.x+=p.vx*dt;
+        p.y+=p.vy*dt;
+        p.vy+=200*dt;
+        p.life-=dt;
+        if(p.life>0){
+            ctx.globalAlpha=Math.min(1,p.life*3);
+            ctx.fillStyle=p.color;
+            if(p.type==='sparkle'){
+                // star shape
+                ctx.beginPath();
+                ctx.arc(p.x,p.y-(g?g.cameraY:0),p.r*Math.min(1,p.life*2),0,Math.PI*2);
+                ctx.fill();
+            }
+        }
+    });
+    ctx.globalAlpha=1;
+    particles=particles.filter(p=>p.life>0);
+
+    // Danger overlay for low stability
+    if(g&&g.started&&!g.over&&g.stability<25){
+        const pulse=0.08+0.06*Math.sin(Date.now()*0.008);
+        ctx.fillStyle=`rgba(239,68,68,${pulse})`;
+        ctx.fillRect(0,0,W,H);
+    }
+}
+
+// ================================================================
+//  HUD UPDATE
+// ================================================================
+function updateHUD(){
+    const g=game;if(!g)return;
+    $('height-val').textContent=g.height;
+    $('streak-val').textContent=g.streak>1?g.streak+'x streak':'';
+    if(!isSolo){
+        $('hud-players').innerHTML='<b>'+myName+'</b> & <b>'+opName+'</b>';
+    }else{
+        $('hud-players').textContent='';
+    }
+    // stability bar
+    const pct=Math.max(0,Math.min(100,g.stability));
+    const bar=$('stab-bar');
+    bar.style.height=pct+'%';
+    let barColor;
+    if(pct>60)barColor='#22c55e';
+    else if(pct>35)barColor='#f59e0b';
+    else barColor='#ef4444';
+    bar.style.background=barColor;
+    $('stab-pct').textContent=Math.round(pct)+'%';
+    $('stab-pct').style.color=barColor;
+}
+
+function showBigMsg(text,cls){
+    const el=document.createElement('div');
+    el.className='big-msg '+cls;el.textContent=text;
+    document.body.appendChild(el);setTimeout(()=>el.remove(),1100);
+}
+
+// ================================================================
+//  QUESTION SYSTEM
+// ================================================================
+function getNextQuestion(){
+    const g=game;
+    if(g.qi>=g.questions.length){
+        g.questions=shuffle(ALL_Q.slice());
+        g.qi=0;
+    }
+    return g.questions[g.qi++];
+}
+
+function showQuestion(q,opts){
+    const g=game;
+    g.currentQ=q;
+    g.myAnswer=null;
+    g.partnerAnswer=null;
+    g.waitingResult=false;
+    g.roundActive=true;
+    g.roundTimer=ROUND_TIME;
+
+    $('q-sentence').innerHTML=q.s.replace('___','<span class="q-blank"></span>');
+    $('q-english').textContent=q.e;
+    $('q-tense').textContent=TENSE_LABELS[q.t];
+
+    const grid=$('q-grid');
+    grid.innerHTML='';
+    opts.forEach(opt=>{
+        const btn=document.createElement('button');
+        btn.className='q-btn';
+        btn.innerHTML=opt+'<span class="partner-dot"></span>';
+        btn.addEventListener('click',()=>onAnswer(btn,opt));
+        btn.addEventListener('touchend',e=>{e.preventDefault();onAnswer(btn,opt)});
+        grid.appendChild(btn);
+    });
+
+    $('q-timer-bar').style.width='100%';
+    $('question-area').style.display='block';
+}
+
+function onAnswer(btn,text){
+    const g=game;
+    if(!g||!g.roundActive||g.myAnswer!==null)return;
+    g.myAnswer=text;
+
+    // visual feedback
+    const btns=$('q-grid').querySelectorAll('.q-btn');
+    btns.forEach(b=>b.classList.add('disabled'));
+
+    const isCorrect=text===g.currentQ.c;
+    btn.classList.add(isCorrect?'correct-flash':'wrong-flash');
+
+    if(isSolo){
+        // Solo: resolve immediately
+        setTimeout(()=>resolveRound(isCorrect),400);
+    }else{
+        // Multiplayer
+        if(isHost){
+            // Host waits for client answer or timeout
+            if(g.partnerAnswer!==null){
+                setTimeout(()=>hostResolve(),400);
+            }
+            // else wait for client
+        }else{
+            // Client sends answer to host
+            net.send({t:'ans',ans:text,time:Date.now()});
+            // wait for host result
+            g.waitingResult=true;
+        }
+    }
+}
+
+function hostResolve(){
+    const g=game;if(!g||!g.currentQ)return;
+    const hostCorrect=g.myAnswer===g.currentQ.c;
+    const clientCorrect=g.partnerAnswer===g.currentQ.c;
+    const bothCorrect=hostCorrect&&clientCorrect;
+    const bothWrong=!hostCorrect&&!clientCorrect;
+    const oneCorrect=(hostCorrect||clientCorrect)&&!bothCorrect;
+
+    let resultType;
+    if(bothCorrect)resultType='perfect';
+    else if(oneCorrect)resultType='placed';
+    else resultType='shake'; // bothWrong
+
+    // update stats
+    if(hostCorrect)g.hostCorrect++;else g.hostWrong++;
+    if(clientCorrect)g.clientCorrect++;else g.clientWrong++;
+
+    applyResult(resultType,hostCorrect);
+
+    // send result to client
+    net.send({
+        t:'result',
+        resultType,
+        hostAns:g.myAnswer,
+        clientAns:g.partnerAnswer,
+        correct:g.currentQ.c,
+        height:g.height,
+        stability:g.stability
+    });
+
+    if(g.stability<=0&&!g.collapsed){
+        triggerCollapse();
+        net.send({t:'collapse'});
+    }
+}
+
+function resolveRound(correct){
+    // Solo mode resolution
+    const g=game;if(!g)return;
+    g.totalRounds++;
+    g.roundActive=false;
+    $('question-area').style.display='none';
+
+    if(correct){
+        g.correct++;
+        g.streak++;
+        if(g.streak>g.bestStreak)g.bestStreak=g.streak;
+        g.stability=Math.min(100,g.stability+2);
+        placeBlock(g.currentQ,false);
+        sndThunk();
+        showBigMsg('PLACED!','placed');
+    }else{
+        g.wrong++;
+        g.streak=0;
+        g.stability-=12;
+        triggerShake(0.7);
+        sndRumble();
+        showBigMsg('SHAKE!','shake-msg');
+    }
+
+    updateHUD();
+
+    if(g.stability<=0){
+        triggerCollapse();
+        return;
+    }
+
+    // next round after pause
+    g.roundPause=2;
+}
+
+function applyResult(resultType,myCorrect){
+    const g=game;if(!g)return;
+    g.totalRounds++;
+    g.roundActive=false;
+    $('question-area').style.display='none';
+
+    if(resultType==='perfect'){
+        // both correct
+        g.correct++;
+        g.streak++;
+        if(g.streak>g.bestStreak)g.bestStreak=g.streak;
+        g.stability=Math.min(100,g.stability+5);
+        placeBlock(g.currentQ,true);
+        showBigMsg('PERFECT!','perfect');
+        sndPerfect();
+    }else if(resultType==='placed'){
+        // one correct
+        if(myCorrect)g.correct++;else g.wrong++;
+        g.streak=myCorrect?g.streak+1:0;
+        if(g.streak>g.bestStreak)g.bestStreak=g.streak;
+        g.stability=Math.min(100,g.stability+3);
+        placeBlock(g.currentQ,false);
+        showBigMsg('PLACED!','placed');
+        sndThunk();
+    }else{
+        // both wrong
+        g.wrong++;
+        g.streak=0;
+        g.stability-=15;
+        triggerShake(1);
+        sndRumble();
+        showBigMsg('SHAKE!','shake-msg');
+    }
+
+    updateHUD();
+    g.roundPause=2;
+}
+
+function handleTimeout(){
+    const g=game;if(!g)return;
+
+    if(isSolo){
+        g.totalRounds++;
+        g.roundActive=false;
+        $('question-area').style.display='none';
+        g.wrong++;
+        g.streak=0;
+        g.stability-=8;
+        triggerShake(0.5);
+        sndRumble();
+        showBigMsg('TIME UP!','shake-msg');
+        updateHUD();
+        if(g.stability<=0){triggerCollapse();return}
+        g.roundPause=2;
+    }else if(isHost){
+        // If host already answered, treat client as timed out (wrong)
+        if(g.myAnswer!==null){
+            g.partnerAnswer='__timeout__';
+            hostResolve();
+        }else{
+            // Neither answered in time
+            g.totalRounds++;
+            g.roundActive=false;
+            $('question-area').style.display='none';
+            g.wrong++;
+            g.streak=0;
+            g.stability-=10;
+            triggerShake(0.6);
+            sndRumble();
+            showBigMsg('TIME UP!','shake-msg');
+            net.send({
+                t:'result',
+                resultType:'timeout',
+                correct:g.currentQ.c,
+                height:g.height,
+                stability:g.stability
+            });
+            updateHUD();
+            if(g.stability<=0){triggerCollapse();net.send({t:'collapse'});return}
+            g.roundPause=2;
+        }
+    }
+}
+
+// ================================================================
+//  BLOCK PLACEMENT
+// ================================================================
+function placeBlock(q,perfect){
+    const g=game;
+    const idx=g.height;
+    const x=perfect?W/2-BLOCK_W/2:getBlockX(idx);
+    const targetY=getBlockY(idx);
+    const color=TENSE_COLORS[q.t]||'#94a3b8';
+
+    // start drop animation
+    g.droppingBlock={
+        x,
+        y:targetY-250,
+        targetY,
+        vy:0,
+        bounces:0,
+        color,
+        text:q.c,
+        tense:q.t,
+        settled:false
+    };
+
+    g.height++;
+
+    // check milestones
+    if(g.height%10===0){
+        setTimeout(()=>{
+            showBigMsg(g.height+' BLOCKS!','milestone');
+            sndMilestone();
+        },500);
+    }
+}
+
+function updateDroppingBlock(dt){
+    const g=game;if(!g||!g.droppingBlock)return;
+    const db=g.droppingBlock;
+
+    db.vy+=1800*dt; // gravity
+    db.y+=db.vy*dt;
+
+    if(db.y>=db.targetY){
+        db.y=db.targetY;
+        if(db.bounces<2){
+            db.vy=-db.vy*0.3;
+            db.bounces++;
+            if(db.bounces===1){
+                // spawn sparkles on landing
+                const screenY=db.targetY-g.cameraY;
+                spawnSparkles(db.x+BLOCK_W/2,screenY,12,db.color);
+            }
+        }else{
+            // settled
+            db.y=db.targetY;
+            g.blocks.push({
+                x:db.x,
+                y:db.targetY,
+                color:db.color,
+                text:db.text,
+                tense:db.tense
+            });
+            g.droppingBlock=null;
+        }
+    }
+}
+
+// ================================================================
+//  SHAKE & COLLAPSE
+// ================================================================
+function triggerShake(amt){
+    const g=game;if(!g)return;
+    g.shakeAmt=amt;
+    g.shakeTime=0.6;
+}
+
+function triggerCollapse(){
+    const g=game;if(!g||g.collapsed)return;
+    g.collapsed=true;
+    g.roundActive=false;
+    $('question-area').style.display='none';
+    g.droppingBlock=null;
+
+    sndCollapse();
+
+    // convert blocks to physics objects
+    g.collapseBlocks=g.blocks.map(b=>({
+        x:b.x,
+        y:b.y,
+        color:b.color,
+        text:b.text,
+        vx:(Math.random()-0.5)*200,
+        vy:-100-Math.random()*200,
+        rot:0,
+        vrot:(Math.random()-0.5)*8
+    }));
+    g.blocks=[];
+    g.collapseTime=3;
+}
+
+function updateCollapse(dt){
+    const g=game;if(!g||!g.collapsed)return;
+    g.collapseBlocks.forEach(b=>{
+        b.vy+=500*dt;
+        b.x+=b.vx*dt;
+        b.y+=b.vy*dt;
+        b.rot+=b.vrot*dt;
+    });
+    g.collapseTime-=dt;
+    if(g.collapseTime<=0){
+        endGame();
+    }
+}
+
+// ================================================================
+//  GAME FLOW
+// ================================================================
+function startGameplay(){
+    game=newGame();
+    game.started=true;
+    showScreen(null);
+    $('hud').style.display='block';
+    $('stab-wrap').style.display='block';
+    $('question-area').style.display='none';
+    countdownT=3.5;countdownPhase=4;
+    updateHUD();
+}
+
+let countdownT=0, countdownPhase=0;
+
+function startNextRound(){
+    const g=game;if(!g||g.over||g.collapsed)return;
+
+    if(isSolo){
+        const q=getNextQuestion();
+        const distractors=getDistractors(q.v,q.c,3);
+        const opts=shuffle([q.c,...distractors]);
+        showQuestion(q,opts);
+    }else if(isHost){
+        const q=getNextQuestion();
+        const distractors=getDistractors(q.v,q.c,3);
+        const opts=shuffle([q.c,...distractors]);
+        // send to client
+        net.send({t:'q',q:{s:q.s,e:q.e,c:q.c,v:q.v,opts,tense:q.t},round:g.totalRounds+1});
+        showQuestion(q,opts);
+    }
+    // client waits for host to send question
+}
+
+function endGame(){
+    const g=game;if(!g||g.over)return;
+    g.over=true;
+    g.roundActive=false;
+    $('question-area').style.display='none';
+
+    setTimeout(()=>{
+        $('hud').style.display='none';
+        $('stab-wrap').style.display='none';
+
+        $('res-title').textContent='TOWER COLLAPSED!';
+        $('res-title').className='res-title collapse';
+        $('res-sub').textContent='Your tower reached...';
+        $('res-height').textContent=g.height;
+
+        // check record
+        const isRecord=g.height>bestHeight;
+        if(isRecord){
+            bestHeight=g.height;
+            try{localStorage.setItem('tt-best',bestHeight.toString())}catch(e){}
+            $('new-record').style.display='block';
+        }else{
+            $('new-record').style.display='none';
+        }
+
+        let stats='';
+        stats+=`<div class="res-row"><span>Total Rounds</span><span>${g.totalRounds}</span></div>`;
+        stats+=`<div class="res-row"><span>Correct Answers</span><span style="color:#22c55e">${g.correct}</span></div>`;
+        const accuracy=g.totalRounds>0?Math.round(g.correct/g.totalRounds*100):0;
+        stats+=`<div class="res-row"><span>Accuracy</span><span>${accuracy}%</span></div>`;
+        stats+=`<div class="res-row"><span>Highest Streak</span><span style="color:#f59e0b">${g.bestStreak}x</span></div>`;
+        stats+=`<div class="res-row"><span>Best Record</span><span>${bestHeight} blocks</span></div>`;
+
+        if(!isSolo){
+            stats+=`<div class="res-row" style="border-top:2px solid #334155;margin-top:4px;padding-top:8px"><span>${myName} correct</span><span style="color:#22c55e">${isHost?g.hostCorrect:g.clientCorrect}</span></div>`;
+            stats+=`<div class="res-row"><span>${opName} correct</span><span style="color:#3b82f6">${isHost?g.clientCorrect:g.hostCorrect}</span></div>`;
+        }
+
+        $('res-stats').innerHTML=stats;
+        showScreen('results');
+    },800);
+}
+
+// ================================================================
+//  MAIN LOOP
+// ================================================================
+let lastT=0;
+
+function loop(ts){
+    const dt=Math.min((ts-lastT)/1000,0.06);lastT=ts;
+
+    drawBackground(dt);
+
+    if(game&&game.started&&!game.over){
+        // countdown
+        if(countdownT>0){
+            countdownT-=dt;
+            const n=Math.ceil(countdownT);
+            if(n!==countdownPhase&&n>0){countdownPhase=n;showBigMsg(n.toString(),'num');sndCount()}
+            if(countdownT<=0){
+                showBigMsg('BUILD!','go');sndGo();
+                game.roundPause=1;
+            }
+        }else if(!game.collapsed){
+            // Round timer
+            if(game.roundActive&&game.currentQ){
+                game.roundTimer-=dt*1000;
+                const pct=Math.max(0,game.roundTimer/ROUND_TIME*100);
+                $('q-timer-bar').style.width=pct+'%';
+                if(pct<30)$('q-timer-bar').style.background='#ef4444';
+                else $('q-timer-bar').style.background='#f59e0b';
+
+                if(game.roundTimer<=0){
+                    // timeout
+                    if(isSolo||isHost)handleTimeout();
+                }
+            }
+
+            // Round pause
+            if(!game.roundActive&&game.roundPause>0){
+                game.roundPause-=dt;
+                if(game.roundPause<=0){
+                    startNextRound();
+                }
+            }
+
+            // Stability recovery over time
+            game.lastStabRecover+=dt;
+            if(game.lastStabRecover>=5){
+                game.lastStabRecover=0;
+                game.stability=Math.min(100,game.stability+1);
+                updateHUD();
+            }
+
+            // Update dropping block
+            updateDroppingBlock(dt);
+
+            // Update HUD continuously for stability wobble
+            updateHUD();
+        }else{
+            // Collapse animation
+            updateCollapse(dt);
+        }
+
+        // Draw tower
+        drawTower(dt);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// ================================================================
+//  NETWORKING HANDLERS
+// ================================================================
+function hostMsg(msg){
+    if(!msg||!msg.t)return;
+    switch(msg.t){
+        case'join':break;
+        case'hello':
+            opName=msg.name||'Player 2';
+            renderLobby();
+            $('btn-start').style.display='block';
+            $('lobby-status').textContent=opName+' joined!';
+            break;
+        case'leave':
+            opName='';
+            renderLobby();
+            $('btn-start').style.display='none';
+            $('lobby-status').textContent='Partner left.';
+            break;
+        case'ans':
+            if(game&&game.roundActive){
+                game.partnerAnswer=msg.ans;
+                // show dot on the button the partner picked
+                const btns=$('q-grid').querySelectorAll('.q-btn');
+                btns.forEach(b=>{
+                    if(b.textContent.trim()===msg.ans){
+                        b.querySelector('.partner-dot').style.display='block';
+                    }
+                });
+                // if host already answered, resolve
+                if(game.myAnswer!==null){
+                    setTimeout(()=>hostResolve(),400);
+                }
+            }
+            break;
+        case'want-rematch':doStart();break;
+    }
+}
+
+function clientMsg(msg){
+    if(!msg||!msg.t)return;
+    switch(msg.t){
+        case'welcome':
+            opName=msg.name||'Host';
+            renderLobby();
+            break;
+        case'go':
+            opName=msg.name||opName;
+            startGameplay();
+            break;
+        case'q':
+            // host sent a question
+            if(game&&game.started&&!game.over){
+                const q={s:msg.q.s,e:msg.q.e,c:msg.q.c,v:msg.q.v,t:msg.q.tense};
+                showQuestion(q,msg.q.opts);
+            }
+            break;
+        case'result':
+            if(game){
+                game.waitingResult=false;
+                game.roundActive=false;
+                $('question-area').style.display='none';
+
+                const myCorrect=game.myAnswer===msg.correct;
+                if(msg.resultType==='perfect'){
+                    game.correct++;
+                    game.streak++;
+                    if(game.streak>game.bestStreak)game.bestStreak=game.streak;
+                    game.stability=msg.stability;
+                    placeBlock(game.currentQ,true);
+                    showBigMsg('PERFECT!','perfect');
+                    sndPerfect();
+                }else if(msg.resultType==='placed'){
+                    if(myCorrect)game.correct++;else game.wrong++;
+                    game.streak=myCorrect?game.streak+1:0;
+                    if(game.streak>game.bestStreak)game.bestStreak=game.streak;
+                    game.stability=msg.stability;
+                    placeBlock(game.currentQ,false);
+                    showBigMsg('PLACED!','placed');
+                    sndThunk();
+                }else if(msg.resultType==='timeout'){
+                    game.wrong++;
+                    game.streak=0;
+                    game.stability=msg.stability;
+                    triggerShake(0.6);
+                    sndRumble();
+                    showBigMsg('TIME UP!','shake-msg');
+                }else{
+                    // shake
+                    game.wrong++;
+                    game.streak=0;
+                    game.stability=msg.stability;
+                    triggerShake(1);
+                    sndRumble();
+                    showBigMsg('SHAKE!','shake-msg');
+                }
+                game.height=msg.height;
+                game.totalRounds++;
+                updateHUD();
+                game.roundPause=2;
+            }
+            break;
+        case'collapse':
+            if(game&&!game.collapsed){
+                triggerCollapse();
+            }
+            break;
+        case'closed':
+            if(game&&!game.over){game.over=true;endGame()}
+            showScreen('menu');
+            $('menu-status').textContent='Partner disconnected.';
+            break;
+    }
+}
+
+function renderLobby(){
+    const l=$('plist');l.innerHTML='';
+    const add=(n,c)=>{const li=document.createElement('li');li.innerHTML=`<span class="dot" style="background:${c}"></span>${n}`;l.appendChild(li)};
+    add(myName,'#f59e0b');if(opName)add(opName,'#3b82f6');
+}
+
+function doStart(){
+    net.send({t:'go',name:myName});
+    startGameplay();
+}
+
+// ================================================================
+//  SCREEN / MENU
+// ================================================================
+function showScreen(id){['menu','lobby','results'].forEach(s=>$(s).classList.remove('active'));if(id)$(id).classList.add('active')}
+
+$('btn-solo').addEventListener('click',()=>{
+    initAudio();isSolo=true;myName=$('inp-name').value.trim()||'Player';
+    startGameplay();
+});
+
+$('btn-create').addEventListener('click',async()=>{
+    initAudio();myName=$('inp-name').value.trim()||'Player 1';
+    roomCode=mkCode();$('menu-status').textContent='Creating room...';
+    try{isHost=true;isSolo=false;net=new HostNet(hostMsg);await net.open(roomCode);
+        $('lobby-code').textContent=roomCode;$('btn-start').style.display='none';
+        $('lobby-status').textContent='Waiting for partner...';renderLobby();showScreen('lobby');
+    }catch(e){$('menu-status').textContent=e.message==='code-taken'?'Code taken, retrying...':'Connection failed.';
+        if(e.message==='code-taken'){roomCode=mkCode();$('btn-create').click()}}
+});
+
+$('btn-join').addEventListener('click',async()=>{
+    initAudio();myName=$('inp-name').value.trim()||'Player 2';
+    const code=$('inp-code').value.trim().toUpperCase();
+    if(code.length<3){$('menu-status').textContent='Enter the room code.';return}
+    $('menu-status').textContent='Joining...';
+    try{isHost=false;isSolo=false;net=new ClientNet(clientMsg);await net.connect(code);roomCode=code;
+        $('lobby-code').textContent=code;$('lobby-status').textContent='Waiting for host to start...';
+        renderLobby();showScreen('lobby');net.send({t:'hello',name:myName});
+    }catch(e){$('menu-status').textContent=e.message||'Room not found.'}
+});
+
+$('btn-copy').addEventListener('click',()=>{
+    navigator.clipboard.writeText(roomCode).then(()=>{$('btn-copy').textContent='Copied!';setTimeout(()=>$('btn-copy').textContent='Copy Code',1500)});
+});
+$('btn-start').addEventListener('click',()=>{if(opName)doStart()});
+$('btn-again').addEventListener('click',()=>{
+    if(isSolo){startGameplay()}
+    else if(isHost){doStart()}
+    else{net.send({t:'want-rematch'});$('res-title').textContent='Waiting...'}
+});
+$('btn-menu').addEventListener('click',()=>{
+    if(net){net.close();net=null}game=null;$('hud').style.display='none';$('stab-wrap').style.display='none';
+    $('question-area').style.display='none';showScreen('menu');$('menu-status').textContent='';
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
