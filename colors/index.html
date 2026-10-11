@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rang Pehchano — رنگ پہچانو</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#1e1b4b;color:white;overflow:hidden;height:100vh;width:100vw;user-select:none}
+.u{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+#app{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+
+/* ── Home ── */
+.home{text-align:center}
+.home h1{font-size:2.8em;font-weight:800;margin-bottom:4px}
+.home .sub{font-size:2em;opacity:0.85;margin-bottom:8px}
+.home p{opacity:0.5;margin-bottom:30px;font-size:0.95em}
+.start-btn{background:#059669;border:none;color:white;font-family:inherit;font-size:1.3em;font-weight:700;padding:16px 50px;cursor:pointer;transition:background 0.2s}
+.start-btn:hover{background:#047857}
+.home-link{margin-top:20px;opacity:0.3;font-size:0.8em}
+.home-link a{color:white;text-decoration:none}
+
+/* ── Top bar ── */
+.top-bar{position:absolute;top:0;left:0;right:0;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:10}
+.top-bar .back{background:rgba(255,255,255,0.12);border:none;color:white;font-size:1em;padding:7px 14px;cursor:pointer;font-family:inherit;font-weight:600;transition:background 0.2s}
+.top-bar .back:hover{background:rgba(255,255,255,0.22)}
+.top-bar .info{text-align:right}
+.top-bar .phase-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6}
+.top-bar .room-name{font-size:1.05em;font-weight:700}
+.progress-bar{position:absolute;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.08)}
+.progress-fill{height:100%;background:#34d399;transition:width 0.4s ease}
+
+/* ── Explore ── */
+.color-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;max-width:700px;width:90%;margin-top:15px}
+.color-card{text-align:center;cursor:pointer;transition:all 0.3s;padding:10px 6px}
+.color-card:hover{transform:scale(1.05)}
+.color-swatch{width:80px;height:80px;margin:0 auto 8px;transition:transform 0.3s;border:3px solid rgba(255,255,255,0.15)}
+.color-card:hover .color-swatch{transform:scale(1.08)}
+.color-card .c-name{font-size:1.4em;font-weight:700;opacity:0;transition:opacity 0.4s;min-height:1.5em}
+.color-card .c-roman{font-size:0.65em;opacity:0;transition:opacity 0.4s;color:rgba(255,255,255,0.5)}
+.color-card .c-eng{font-size:0.6em;opacity:0;transition:opacity 0.4s;color:rgba(255,255,255,0.4)}
+.color-card.revealed .c-name,.color-card.revealed .c-roman,.color-card.revealed .c-eng{opacity:1}
+
+/* ── Quiz ── */
+.quiz-center{text-align:center;margin-top:70px}
+.big-swatch{width:180px;height:180px;margin:0 auto 20px;border:4px solid rgba(255,255,255,0.2);animation:fadeIn 0.4s ease}
+.choices{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;max-width:700px;margin:0 auto}
+.choice-btn{background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);color:white;font-size:1.8em;font-weight:700;padding:12px 36px;cursor:pointer;transition:all 0.2s;min-width:140px;font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+.choice-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.choice-btn.correct{background:rgba(52,211,153,0.2);border-color:#34d399;animation:bounceBtn 0.4s ease}
+.choice-btn.wrong{background:rgba(239,68,68,0.2);border-color:#ef4444;animation:shakeBtn 0.4s ease}
+.choice-btn:disabled{cursor:default;pointer-events:none}
+
+/* ── Reverse: pick color ── */
+.word-display{font-size:3em;font-weight:700;text-align:center;margin-bottom:6px;font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+.word-hint{text-align:center;font-size:0.85em;opacity:0.4;margin-bottom:20px}
+.swatch-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:550px;margin:0 auto}
+.swatch-pick{width:100%;aspect-ratio:1;cursor:pointer;border:3px solid rgba(255,255,255,0.15);transition:all 0.25s}
+.swatch-pick:hover{transform:scale(1.08);border-color:rgba(255,255,255,0.35)}
+.swatch-pick.correct{border-color:#34d399;box-shadow:0 0 20px rgba(52,211,153,0.4);animation:bounceBtn 0.4s ease}
+.swatch-pick.wrong{border-color:#ef4444;animation:shakeBtn 0.4s ease}
+
+/* ── Dots ── */
+.dots{display:flex;gap:5px;margin-bottom:8px;justify-content:center}
+.dot{width:9px;height:9px;background:rgba(255,255,255,0.12)}
+.dot.done{background:#34d399}
+.dot.current{background:#fbbf24}
+.dot.wrong-dot{background:#ef4444}
+.score-info{font-size:0.8em;opacity:0.5;margin-bottom:10px;text-align:center}
+
+/* ── Ready ── */
+.ready-area{text-align:center;margin-top:18px}
+
+/* ── Results ── */
+.results{text-align:center}
+.results h2{font-size:2.4em;font-weight:800;margin-bottom:10px}
+.stars-row{margin:14px 0}
+.star-svg{display:inline-block;width:55px;height:55px;margin:0 6px}
+.score-text{font-size:1.1em;opacity:0.6;margin-bottom:25px}
+.btn-row{display:flex;gap:12px;justify-content:center}
+.btn{background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);color:white;font-family:inherit;font-size:1em;font-weight:600;padding:12px 30px;cursor:pointer;transition:all 0.2s}
+.btn:hover{background:rgba(255,255,255,0.2)}
+.btn.primary{background:#059669;border-color:#059669}
+.btn.primary:hover{background:#047857}
+.results-swatches{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;max-width:500px}
+.results-swatch{width:50px;height:50px;text-align:center}
+.rs-label{font-size:0.7em;font-weight:600;margin-top:2px}
+
+/* ── Particles ── */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100}
+.particle{position:absolute;animation:pfall 1s ease-out forwards}
+@keyframes pfall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100px) rotate(360deg)}}
+@keyframes bounceBtn{0%{transform:scale(1)}30%{transform:scale(1.06)}60%{transform:scale(0.97)}100%{transform:scale(1)}}
+@keyframes shakeBtn{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes fadeIn{from{opacity:0;transform:scale(0.9)}to{opacity:1;transform:scale(1)}}
+.fade-in{animation:fadeIn 0.35s ease both}
+.stagger-1{animation-delay:0.03s}.stagger-2{animation-delay:0.06s}.stagger-3{animation-delay:0.09s}.stagger-4{animation-delay:0.12s}.stagger-5{animation-delay:0.15s}
+.stagger-6{animation-delay:0.18s}.stagger-7{animation-delay:0.21s}.stagger-8{animation-delay:0.24s}.stagger-9{animation-delay:0.27s}.stagger-10{animation-delay:0.3s}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="particles"></div>
+
+<script>
+// ═══════════ AUDIO ═══════════
+let actx;
+function ensureAudio(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)()}
+function tone(f,d,t,v=0.3){ensureAudio();const o=actx.createOscillator(),g=actx.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+d);o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}
+function sfxPop(){tone(600,0.1,'sine',0.2);tone(900,0.08,'sine',0.15)}
+function sfxCorrect(){tone(523,0.15,'sine');setTimeout(()=>tone(659,0.15,'sine'),100);setTimeout(()=>tone(784,0.2,'sine'),200)}
+function sfxWrong(){tone(200,0.25,'triangle',0.2)}
+function sfxCelebrate(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.25,'sine',0.2),i*120))}
+
+// ═══════════ DATA ═══════════
+const COLORS=[
+    {id:'red',urdu:'لال',roman:'laal',eng:'Red',hex:'#EF4444'},
+    {id:'blue',urdu:'نیلا',roman:'neela',eng:'Blue',hex:'#3B82F6'},
+    {id:'green',urdu:'ہرا',roman:'hara',eng:'Green',hex:'#22C55E'},
+    {id:'yellow',urdu:'پیلا',roman:'peela',eng:'Yellow',hex:'#FBBF24'},
+    {id:'white',urdu:'سفید',roman:'safed',eng:'White',hex:'#F8FAFC'},
+    {id:'black',urdu:'کالا',roman:'kaala',eng:'Black',hex:'#1C1917'},
+    {id:'orange',urdu:'نارنجی',roman:'naranji',eng:'Orange',hex:'#F97316'},
+    {id:'pink',urdu:'گلابی',roman:'gulabi',eng:'Pink',hex:'#EC4899'},
+    {id:'brown',urdu:'بھورا',roman:'bhoora',eng:'Brown',hex:'#92400E'},
+    {id:'purple',urdu:'جامنی',roman:'jamni',eng:'Purple',hex:'#8B5CF6'}
+];
+
+// ═══════════ STATE ═══════════
+const app=document.getElementById('app');
+const particles=document.getElementById('particles');
+let state='home';
+let explored=new Set();
+let qIndex=0;
+let qOrder=[];
+let score=0;
+let attempts=0;
+let phase='explore';
+let dotResults=[];
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+function getChoices(correct,pool,n=3){
+    const others=pool.filter(c=>c.id!==correct.id);
+    const picked=shuffle(others).slice(0,n-1);
+    picked.push(correct);
+    return shuffle(picked);
+}
+
+function spawnParticles(x,y,n=10){
+    const colors=['#34d399','#fbbf24','#60a5fa','#f472b6','#a78bfa'];
+    for(let i=0;i<n;i++){
+        const p=document.createElement('div');
+        p.className='particle';
+        p.style.left=(x+Math.random()*30-15)+'px';
+        p.style.top=(y+Math.random()*20-10)+'px';
+        p.style.background=colors[Math.floor(Math.random()*colors.length)];
+        const s=5+Math.random()*5;
+        p.style.width=s+'px';p.style.height=s+'px';
+        particles.appendChild(p);
+        setTimeout(()=>p.remove(),1200);
+    }
+}
+
+function starSVG(earned){
+    const f=earned?'#FBBF24':'rgba(255,255,255,0.1)',s=earned?'#F59E0B':'rgba(255,255,255,0.15)';
+    return `<svg viewBox="0 0 50 50" class="star-svg" ${earned?'style="animation:bounceBtn 0.5s ease"':''}><polygon points="25,4 30,18 45,18 33,27 37,42 25,33 13,42 17,27 5,18 20,18" fill="${f}" stroke="${s}" stroke-width="1.5"/></svg>`;
+}
+
+// ═══════════ RENDER ═══════════
+function render(){
+    if(state==='home') renderHome();
+    else if(state==='play'){
+        if(phase==='explore') renderExplore();
+        else if(phase==='quiz') renderQuiz();
+        else if(phase==='find') renderFind();
+    }
+    else if(state==='results') renderResults();
+}
+
+function renderHome(){
+    app.innerHTML=`
+        <div class="home fade-in">
+            <h1>Rang Pehchano</h1>
+            <div class="sub u">رنگ پہچانو</div>
+            <p>Learn the Urdu names of 10 colors</p>
+            <button class="start-btn" onclick="startGame()">Start</button>
+            <div class="home-link"><a href="/">Home</a></div>
+        </div>`;
+}
+
+function renderExplore(){
+    const allDone=explored.size>=COLORS.length;
+    const progress=(explored.size/COLORS.length)*33;
+    app.innerHTML=`
+        <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+        <div class="top-bar">
+            <button class="back" onclick="goHome()">Back</button>
+            <div class="info">
+                <div class="phase-label">Explore</div>
+                <div class="room-name">Click each color to learn its name</div>
+            </div>
+        </div>
+        <div style="text-align:center;margin-top:60px;font-size:1.3em;font-weight:700;opacity:0.8" class="fade-in">
+            Tap a color to see its Urdu name
+        </div>
+        <div class="color-grid">
+            ${COLORS.map((c,i)=>`
+                <div class="color-card ${explored.has(c.id)?'revealed':''} fade-in stagger-${i+1}" onclick="exploreColor('${c.id}')">
+                    <div class="color-swatch" style="background:${c.hex};${c.id==='white'?'border-color:rgba(255,255,255,0.4)':''}${c.id==='black'?'border-color:rgba(255,255,255,0.3)':''}"></div>
+                    <div class="c-name u">${c.urdu}</div>
+                    <div class="c-roman">${c.roman}</div>
+                    <div class="c-eng">${c.eng}</div>
+                </div>
+            `).join('')}
+        </div>
+        ${allDone?`<div class="ready-area fade-in"><button class="btn primary" onclick="startQuiz()" style="font-size:1.15em;padding:12px 40px">Ready? Let's play!</button></div>`:''}`;
+}
+
+function renderQuiz(){
+    const c=COLORS[qOrder[qIndex]];
+    const choices=getChoices(c,COLORS,3);
+    const total=COLORS.length;
+    const progress=33+(qIndex/total)*33;
+    app.innerHTML=`
+        <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+        <div class="top-bar">
+            <button class="back" onclick="goHome()">Back</button>
+            <div class="info">
+                <div class="phase-label">Quiz ${qIndex+1}/${total}</div>
+                <div class="room-name u" style="font-size:1.2em">یہ کون سا رنگ ہے؟</div>
+            </div>
+        </div>
+        <div class="quiz-center">
+            <div class="dots">${buildDots(qIndex,total)}</div>
+            <div class="score-info">Score: ${score}</div>
+            <div class="big-swatch" style="background:${c.hex};${c.id==='black'?'border-color:rgba(255,255,255,0.3)':''}"></div>
+            <div class="choices">
+                ${choices.map(ch=>`
+                    <button class="choice-btn" data-id="${ch.id}" onclick="quizPick(this,'${ch.id}','${c.id}')">${ch.urdu}</button>
+                `).join('')}
+            </div>
+        </div>`;
+}
+
+function renderFind(){
+    const c=COLORS[qOrder[qIndex]];
+    const swatches=getChoices(c,COLORS,4);
+    const total=COLORS.length;
+    const progress=66+(qIndex/total)*34;
+    app.innerHTML=`
+        <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+        <div class="top-bar">
+            <button class="back" onclick="goHome()">Back</button>
+            <div class="info">
+                <div class="phase-label">Find ${qIndex+1}/${total}</div>
+                <div class="room-name">Pick the color</div>
+            </div>
+        </div>
+        <div style="margin-top:70px">
+            <div class="dots">${buildDots(qIndex+COLORS.length,COLORS.length*2)}</div>
+            <div class="score-info">Score: ${score}</div>
+            <div class="word-display fade-in">${c.urdu}</div>
+            <div class="word-hint">${c.roman} — ${c.eng}</div>
+            <div class="swatch-grid">
+                ${swatches.map((s,i)=>`
+                    <div class="swatch-pick fade-in stagger-${i+1}" style="background:${s.hex};${s.id==='black'?'border-color:rgba(255,255,255,0.3)':''}${s.id==='white'?'border-color:rgba(255,255,255,0.4)':''}" data-id="${s.id}" onclick="findPick(this,'${s.id}','${c.id}')"></div>
+                `).join('')}
+            </div>
+        </div>`;
+}
+
+function renderResults(){
+    const total=COLORS.length*2;
+    const pct=score/total;
+    const s3=pct>=0.85,s2=pct>=0.6;
+    app.innerHTML=`
+        <div class="results fade-in">
+            <h2>All Done!</h2>
+            <div class="stars-row">${starSVG(true)}${starSVG(s2)}${starSVG(s3)}</div>
+            <div class="score-text">${score} / ${total} correct</div>
+            <div class="results-swatches">
+                ${COLORS.map(c=>`<div class="results-swatch"><div style="width:50px;height:50px;background:${c.hex};border:2px solid rgba(255,255,255,0.15)"></div><div class="rs-label u">${c.urdu}</div></div>`).join('')}
+            </div>
+            <div class="btn-row">
+                <button class="btn" onclick="goHome()">Home</button>
+                <button class="btn primary" onclick="startGame()">Play Again</button>
+            </div>
+        </div>`;
+    setTimeout(()=>sfxCelebrate(),300);
+}
+
+function buildDots(current,total){
+    let html='';
+    for(let i=0;i<total;i++){
+        if(i<dotResults.length) html+=`<div class="dot ${dotResults[i]?'done':'wrong-dot'}"></div>`;
+        else if(i===dotResults.length) html+=`<div class="dot current"></div>`;
+        else html+=`<div class="dot"></div>`;
+    }
+    return html;
+}
+
+// ═══════════ LOGIC ═══════════
+function goHome(){state='home';render()}
+
+function startGame(){
+    state='play';phase='explore';
+    explored.clear();score=0;qIndex=0;attempts=0;dotResults=[];
+    sfxPop();render();
+}
+
+function exploreColor(id){
+    if(explored.has(id))return;
+    explored.add(id);sfxPop();
+    const card=document.querySelector(`.color-card[onclick*="${id}"]`);
+    if(card){card.classList.add('revealed');card.style.animation='bounceBtn 0.4s ease'}
+    if(explored.size>=COLORS.length) setTimeout(()=>render(),400);
+}
+
+function startQuiz(){
+    phase='quiz';qIndex=0;attempts=0;
+    qOrder=shuffle([...Array(COLORS.length).keys()]);
+    dotResults=[];sfxPop();render();
+}
+
+function quizPick(btn,picked,correct){
+    if(btn.classList.contains('correct')||btn.classList.contains('wrong'))return;
+    if(picked===correct){
+        btn.classList.add('correct');
+        if(attempts===0){score++;dotResults.push(true)}else dotResults.push(true);
+        attempts=0;sfxCorrect();
+        const r=btn.getBoundingClientRect();spawnParticles(r.left+r.width/2,r.top);
+        document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
+        setTimeout(()=>{
+            qIndex++;
+            if(qIndex>=COLORS.length){
+                phase='find';qIndex=0;attempts=0;
+                qOrder=shuffle([...Array(COLORS.length).keys()]);
+            }
+            render();
+        },1000);
+    } else {
+        btn.classList.add('wrong');attempts++;sfxWrong();
+        if(attempts===1) dotResults.push(false);
+        setTimeout(()=>{btn.classList.remove('wrong');btn.style.opacity='0.25';btn.disabled=true},400);
+    }
+}
+
+function findPick(el,picked,correct){
+    if(el.classList.contains('correct'))return;
+    if(picked===correct){
+        el.classList.add('correct');
+        if(attempts===0){score++;dotResults.push(true)}else dotResults.push(true);
+        attempts=0;sfxCorrect();
+        const r=el.getBoundingClientRect();spawnParticles(r.left+r.width/2,r.top);
+        document.querySelectorAll('.swatch-pick').forEach(s=>s.style.pointerEvents='none');
+        setTimeout(()=>{
+            qIndex++;
+            if(qIndex>=COLORS.length){state='results'}
+            render();
+        },1000);
+    } else {
+        el.classList.add('wrong');attempts++;sfxWrong();
+        if(attempts===1) dotResults.push(false);
+        setTimeout(()=>{el.classList.remove('wrong');el.style.opacity='0.2';el.style.pointerEvents='none'},400);
+    }
+}
+
+render();
+</script>
+</body>
+</html>
