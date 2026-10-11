@@ -39,8 +39,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#0c4a6e;color:white;o
 
 /* ── UI Panel ── */
 .panel{height:auto;min-height:200px;background:#1e293b;padding:20px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
-.prompt{font-size:1.6em;font-weight:700;margin-bottom:6px}
-.prompt-urdu{font-size:2em;font-weight:700;margin-bottom:16px}
+.prompt{font-size:1.8em;font-weight:700;margin-bottom:16px;font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
 .btn-row{display:flex;gap:16px}
 .pick-btn{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;font-size:2.2em;font-weight:700;padding:14px 50px;border:3px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:white;cursor:pointer;transition:all 0.2s;line-height:1.8}
 .pick-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.35)}
@@ -232,7 +231,7 @@ function renderPlay(){
                 }).join('')}
             </div>
             <div class="score-bar">${round+1} / ${total} &nbsp;|&nbsp; Score: ${score}</div>
-            <div class="prompt">_____ <span class="u" style="font-size:1.1em">${obj.urdu}</span> ہے۔</div>
+            <div class="prompt">_______ ${obj.urdu} ہے۔</div>
             <div class="btn-row">
                 <button class="pick-btn" id="btn-yeh" onclick="pick('yeh')">یہ</button>
                 <button class="pick-btn" id="btn-woh" onclick="pick('woh')">وہ</button>
