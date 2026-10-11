@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yeh ya Woh? — یہ یا وہ؟</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#0c4a6e;color:white;overflow:hidden;height:100vh;width:100vw;user-select:none}
+.u{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+
+#app{width:100%;height:100%;display:flex;flex-direction:column;position:relative}
+
+/* ── Scene ── */
+.scene{flex:1;position:relative;overflow:hidden}
+.sky{position:absolute;inset:0;background:linear-gradient(180deg,#0369a1 0%,#7dd3fc 60%,#bae6fd 80%,#86efac 80%,#22c55e 100%)}
+.ground{position:absolute;bottom:0;left:0;right:0;height:22%;background:linear-gradient(180deg,#22c55e 0%,#15803d 100%)}
+
+/* clouds */
+.cloud{position:absolute;opacity:0.7}
+.cloud svg{width:100px}
+
+/* ── Character ── */
+.character{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);z-index:10;transition:left 0.6s ease}
+
+/* ── Object ── */
+.obj-float{position:absolute;bottom:24%;z-index:5;transition:all 0.6s ease;display:flex;flex-direction:column;align-items:center}
+.obj-float svg{width:100px;height:100px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.15))}
+.obj-float.near{left:45%;transform:scale(1.1)}
+.obj-float.far{left:75%;transform:scale(0.6);opacity:0.75;bottom:32%}
+.obj-label{font-size:1.2em;font-weight:700;margin-top:4px;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,0.3)}
+.obj-label .roman{font-size:0.55em;opacity:0.7;font-weight:500;display:block}
+
+/* ── Near/Far labels ── */
+.zone-label{position:absolute;bottom:6%;font-size:0.8em;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.5;z-index:2}
+.zone-near{left:35%;color:white}
+.zone-far{right:10%;color:white}
+
+/* ── UI Panel ── */
+.panel{height:auto;min-height:200px;background:#1e293b;padding:20px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
+.prompt{font-size:1.6em;font-weight:700;margin-bottom:6px}
+.prompt-urdu{font-size:2em;font-weight:700;margin-bottom:16px}
+.btn-row{display:flex;gap:16px}
+.pick-btn{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;font-size:2.2em;font-weight:700;padding:14px 50px;border:3px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:white;cursor:pointer;transition:all 0.2s;line-height:1.8}
+.pick-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.35)}
+.pick-btn.green-glow{background:rgba(52,211,153,0.2);border-color:#34d399}
+.pick-btn.correct{background:rgba(52,211,153,0.25);border-color:#34d399;animation:bounceBtn 0.5s ease}
+.pick-btn.wrong{background:rgba(239,68,68,0.2);border-color:#ef4444;animation:shakeBtn 0.4s ease}
+.pick-btn:disabled{cursor:default;pointer-events:none}
+
+.score-bar{display:flex;align-items:center;gap:16px;margin-bottom:10px;font-size:0.85em;opacity:0.7}
+
+/* ── Sentence display ── */
+.sentence-display{font-size:1.3em;font-weight:600;margin-top:12px;min-height:2.2em;text-align:center}
+.sentence-display .v-green{color:#34d399}
+.sentence-display .v-orange{color:#fbbf24}
+
+/* ── Home screen ── */
+.home{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95);text-align:center}
+.home h1{font-size:3em;font-weight:800;margin-bottom:4px}
+.home .sub{font-size:2em;opacity:0.85;margin-bottom:8px}
+.home p{opacity:0.5;margin-bottom:30px}
+.start-btn{background:#059669;border:none;color:white;font-family:inherit;font-size:1.3em;font-weight:700;padding:16px 50px;cursor:pointer;transition:background 0.2s}
+.start-btn:hover{background:#047857}
+.home-link{margin-top:20px;opacity:0.3;font-size:0.8em}
+.home-link a{color:white;text-decoration:none}
+
+/* ── Results ── */
+.results{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#064e3b,#047857);text-align:center}
+.results h2{font-size:2.5em;font-weight:800;margin-bottom:10px}
+.results .stars-row{margin:15px 0}
+.results .star-svg{display:inline-block;width:55px;height:55px;margin:0 6px}
+.results .score-text{font-size:1.2em;opacity:0.7;margin-bottom:25px}
+.again-btn{background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;font-family:inherit;font-size:1.1em;font-weight:600;padding:12px 36px;cursor:pointer;transition:all 0.2s;margin:0 8px}
+.again-btn:hover{background:rgba(255,255,255,0.25)}
+.again-btn.primary{background:#059669;border-color:#059669}
+
+/* ── Progress dots ── */
+.dots{display:flex;gap:6px;margin-bottom:8px}
+.dot{width:10px;height:10px;background:rgba(255,255,255,0.15)}
+.dot.done{background:#34d399}
+.dot.current{background:#fbbf24}
+.dot.wrong-dot{background:#ef4444}
+
+/* ── Animations ── */
+@keyframes bounceBtn{0%{transform:scale(1)}30%{transform:scale(1.06)}60%{transform:scale(0.97)}100%{transform:scale(1)}}
+@keyframes shakeBtn{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.fade-in{animation:fadeIn 0.4s ease both}
+.floating{animation:float 2.5s ease-in-out infinite}
+
+/* ── Particles ── */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100}
+.particle{position:absolute;width:8px;height:8px;animation:pfall 1s ease-out forwards}
+@keyframes pfall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100px) rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="particles"></div>
+
+<script>
+// ═══════════ AUDIO ═══════════
+let actx;
+function ensureAudio(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)()}
+function tone(f,d,t,v=0.3){ensureAudio();const o=actx.createOscillator(),g=actx.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+d);o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}
+function sfxCorrect(){tone(523,0.15,'sine');setTimeout(()=>tone(659,0.15,'sine'),100);setTimeout(()=>tone(784,0.2,'sine'),200)}
+function sfxWrong(){tone(200,0.25,'triangle',0.2)}
+function sfxPop(){tone(600,0.1,'sine',0.2)}
+function sfxCelebrate(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.25,'sine',0.2),i*120))}
+
+// ═══════════ SVG DATA ═══════════
+const SVG={
+tree:`<svg viewBox="0 0 100 100"><rect x="42" y="58" width="16" height="32" fill="#8B6914"/><circle cx="50" cy="38" r="28" fill="#22C55E"/><circle cx="32" cy="48" r="16" fill="#16A34A"/><circle cx="68" cy="48" r="16" fill="#16A34A"/></svg>`,
+car:`<svg viewBox="0 0 100 100"><rect x="8" y="42" width="84" height="24" rx="4" fill="#EF4444"/><path d="M26,42 L36,22 L64,22 L74,42" fill="#93C5FD" stroke="#EF4444" stroke-width="1.5"/><circle cx="28" cy="70" r="9" fill="#374151"/><circle cx="72" cy="70" r="9" fill="#374151"/></svg>`,
+flower:`<svg viewBox="0 0 100 100"><rect x="47" y="58" width="6" height="32" fill="#22C55E"/><circle cx="50" cy="48" r="9" fill="#FBBF24"/><circle cx="50" cy="30" r="9" fill="#EC4899"/><circle cx="32" cy="48" r="9" fill="#EC4899"/><circle cx="68" cy="48" r="9" fill="#EC4899"/><circle cx="37" cy="35" r="9" fill="#F472B6"/><circle cx="63" cy="35" r="9" fill="#F472B6"/></svg>`,
+star:`<svg viewBox="0 0 100 100"><polygon points="50,10 61,38 92,38 67,56 77,85 50,68 23,85 33,56 8,38 39,38" fill="#FBBF24"/></svg>`,
+cat:`<svg viewBox="0 0 100 100"><ellipse cx="50" cy="62" rx="22" ry="18" fill="#9CA3AF"/><circle cx="50" cy="35" r="18" fill="#9CA3AF"/><polygon points="36,20 30,2 46,16" fill="#9CA3AF"/><polygon points="64,20 70,2 54,16" fill="#9CA3AF"/><circle cx="42" cy="33" r="4" fill="#22C55E"/><circle cx="58" cy="33" r="4" fill="#22C55E"/><circle cx="42" cy="33" r="2" fill="#1a1a1a"/><circle cx="58" cy="33" r="2" fill="#1a1a1a"/><ellipse cx="50" cy="40" rx="3" ry="2" fill="#F9A8D4"/></svg>`,
+bird:`<svg viewBox="0 0 100 100"><ellipse cx="48" cy="52" rx="24" ry="16" fill="#F59E0B"/><circle cx="72" cy="40" r="12" fill="#F59E0B"/><circle cx="76" cy="38" r="2.5" fill="#1a1a1a"/><polygon points="82,40 95,38 82,44" fill="#EF4444"/><path d="M28,42 Q16,22 38,36" fill="#D97706"/></svg>`,
+chair:`<svg viewBox="0 0 100 100"><rect x="25" y="12" width="50" height="6" rx="1" fill="#A67C20"/><rect x="27" y="18" width="4" height="32" fill="#8B6914"/><rect x="69" y="18" width="4" height="32" fill="#8B6914"/><rect x="25" y="48" width="50" height="6" rx="1" fill="#C49530"/><rect x="27" y="54" width="5" height="34" fill="#8B6914"/><rect x="68" y="54" width="5" height="34" fill="#8B6914"/></svg>`,
+table:`<svg viewBox="0 0 100 100"><rect x="12" y="38" width="76" height="8" rx="1" fill="#C49530"/><rect x="16" y="46" width="6" height="40" fill="#8B6914"/><rect x="78" y="46" width="6" height="40" fill="#8B6914"/></svg>`,
+apple:`<svg viewBox="0 0 100 100"><circle cx="50" cy="55" r="28" fill="#EF4444"/><rect x="47" y="18" width="5" height="14" rx="2" fill="#8B6914"/><ellipse cx="60" cy="26" rx="9" ry="5" fill="#22C55E" transform="rotate(25,60,26)"/></svg>`,
+book:`<svg viewBox="0 0 100 100"><rect x="20" y="20" width="55" height="65" rx="2" fill="#3B82F6"/><rect x="20" y="20" width="8" height="65" fill="#2563EB"/><line x1="35" y1="35" x2="65" y2="35" stroke="white" stroke-width="1.5" opacity="0.7"/><line x1="35" y1="45" x2="60" y2="45" stroke="white" stroke-width="1.5" opacity="0.5"/></svg>`,
+cow:`<svg viewBox="0 0 100 100"><ellipse cx="42" cy="52" rx="28" ry="20" fill="white" stroke="#D1D5DB" stroke-width="1.5"/><circle cx="38" cy="46" r="6" fill="#1a1a1a" opacity="0.5"/><circle cx="56" cy="52" r="8" fill="#1a1a1a" opacity="0.4"/><circle cx="78" cy="34" r="16" fill="white" stroke="#D1D5DB" stroke-width="1.5"/><circle cx="84" cy="30" r="2.5" fill="#1a1a1a"/><ellipse cx="86" cy="38" rx="5" ry="3.5" fill="#F9A8D4"/><rect x="24" y="70" width="6" height="18" rx="2" fill="white" stroke="#D1D5DB" stroke-width="1"/><rect x="52" y="70" width="6" height="18" rx="2" fill="white" stroke="#D1D5DB" stroke-width="1"/></svg>`,
+sun:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="20" fill="#FBBF24"/><line x1="50" y1="14" x2="50" y2="22" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><line x1="50" y1="78" x2="50" y2="86" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><line x1="14" y1="50" x2="22" y2="50" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="50" x2="86" y2="50" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/></svg>`
+};
+
+const BOY=`<svg viewBox="0 0 60 120" width="70"><circle cx="30" cy="18" r="14" fill="#FBBF24"/><circle cx="24" cy="15" r="2" fill="#1a1a1a"/><circle cx="36" cy="15" r="2" fill="#1a1a1a"/><path d="M27,22 Q30,26 33,22" stroke="#1a1a1a" stroke-width="1.5" fill="none"/><rect x="18" y="32" width="24" height="35" rx="4" fill="#3B82F6"/><rect x="14" y="34" width="8" height="24" rx="4" fill="#3B82F6"/><rect x="38" y="34" width="8" height="24" rx="4" fill="#3B82F6"/><circle cx="14" cy="60" r="4" fill="#FBBF24"/><circle cx="46" cy="60" r="4" fill="#FBBF24"/><rect x="20" y="67" width="9" height="35" rx="4" fill="#374151"/><rect x="31" y="67" width="9" height="35" rx="4" fill="#374151"/><rect x="18" y="98" width="13" height="8" rx="3" fill="#8B6914"/><rect x="29" y="98" width="13" height="8" rx="3" fill="#8B6914"/><path d="M18,8 Q20,0 30,2 Q40,0 42,8 Q38,5 30,6 Q22,5 18,8Z" fill="#374151"/></svg>`;
+
+// ═══════════ OBJECTS ═══════════
+const OBJECTS=[
+  {id:'tree',urdu:'درخت',roman:'darakht',eng:'tree'},
+  {id:'car',urdu:'گاڑی',roman:'gaari',eng:'car'},
+  {id:'flower',urdu:'پھول',roman:'phool',eng:'flower'},
+  {id:'star',urdu:'ستارا',roman:'sitara',eng:'star'},
+  {id:'cat',urdu:'بلی',roman:'billi',eng:'cat'},
+  {id:'bird',urdu:'پرندہ',roman:'parinda',eng:'bird'},
+  {id:'chair',urdu:'کرسی',roman:'kursi',eng:'chair'},
+  {id:'table',urdu:'میز',roman:'mez',eng:'table'},
+  {id:'apple',urdu:'سیب',roman:'seb',eng:'apple'},
+  {id:'book',urdu:'کتاب',roman:'kitaab',eng:'book'},
+  {id:'cow',urdu:'گائے',roman:'gaye',eng:'cow'},
+  {id:'sun',urdu:'سورج',roman:'sooraj',eng:'sun'}
+];
+
+// ═══════════ STATE ═══════════
+const app=document.getElementById('app');
+const particles=document.getElementById('particles');
+let state='home';
+let round=0;
+let score=0;
+let total=12;
+let order=[];
+let positions=[];
+let answered=false;
+let results=[];
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+function spawnParticles(x,y,n=10){
+    const colors=['#34d399','#fbbf24','#60a5fa','#f472b6','#a78bfa'];
+    for(let i=0;i<n;i++){
+        const p=document.createElement('div');
+        p.className='particle';
+        p.style.left=(x+Math.random()*30-15)+'px';
+        p.style.top=(y+Math.random()*20-10)+'px';
+        p.style.background=colors[Math.floor(Math.random()*colors.length)];
+        p.style.width=(5+Math.random()*5)+'px';
+        p.style.height=p.style.width;
+        particles.appendChild(p);
+        setTimeout(()=>p.remove(),1200);
+    }
+}
+
+function starSVG(earned){
+    const f=earned?'#FBBF24':'rgba(255,255,255,0.1)',s=earned?'#F59E0B':'rgba(255,255,255,0.15)';
+    return `<svg viewBox="0 0 50 50" class="star-svg" ${earned?'style="animation:bounceBtn 0.5s ease"':''}><polygon points="25,4 30,18 45,18 33,27 37,42 25,33 13,42 17,27 5,18 20,18" fill="${f}" stroke="${s}" stroke-width="1.5"/></svg>`;
+}
+
+// ═══════════ RENDER ═══════════
+function render(){
+    if(state==='home') renderHome();
+    else if(state==='play') renderPlay();
+    else if(state==='results') renderResults();
+}
+
+function renderHome(){
+    app.innerHTML=`
+        <div class="home">
+            <h1>Yeh ya Woh?</h1>
+            <div class="sub u">یہ یا وہ؟</div>
+            <p>Is it near or far? Pick the right word!</p>
+            <button class="start-btn" onclick="startGame()">Start</button>
+            <div class="home-link"><a href="/">Home</a></div>
+        </div>`;
+}
+
+function renderPlay(){
+    const obj=OBJECTS[order[round]];
+    const isNear=positions[round];
+    const nearLeft=isNear?'38%':'38%';
+
+    app.innerHTML=`
+        <div class="scene">
+            <div class="sky"></div>
+            <div class="ground"></div>
+
+            <div class="cloud" style="top:8%;left:10%"><svg viewBox="0 0 120 60"><circle cx="30" cy="40" r="18" fill="white" opacity="0.7"/><circle cx="55" cy="40" r="18" fill="white" opacity="0.7"/><circle cx="42" cy="25" r="20" fill="white" opacity="0.8"/><circle cx="70" cy="35" r="12" fill="white" opacity="0.6"/></svg></div>
+            <div class="cloud" style="top:12%;left:65%"><svg viewBox="0 0 100 50"><circle cx="25" cy="32" r="15" fill="white" opacity="0.6"/><circle cx="48" cy="32" r="15" fill="white" opacity="0.6"/><circle cx="36" cy="20" r="16" fill="white" opacity="0.7"/></svg></div>
+
+            <div class="character" style="left:${nearLeft}">
+                ${BOY}
+            </div>
+
+            <div class="obj-float ${isNear?'near':'far'} floating" id="obj-display">
+                ${SVG[obj.id]}
+                <div class="obj-label u">${obj.urdu}<span class="roman">${obj.roman}</span></div>
+            </div>
+
+            <div class="zone-label zone-near">NEAR</div>
+            <div class="zone-label zone-far">FAR</div>
+        </div>
+
+        <div class="panel">
+            <div class="dots">
+                ${order.map((_,i)=>{
+                    if(i<round) return `<div class="dot ${results[i]?'done':'wrong-dot'}"></div>`;
+                    if(i===round) return `<div class="dot current"></div>`;
+                    return `<div class="dot"></div>`;
+                }).join('')}
+            </div>
+            <div class="score-bar">${round+1} / ${total} &nbsp;|&nbsp; Score: ${score}</div>
+            <div class="prompt">_____ <span class="u" style="font-size:1.1em">${obj.urdu}</span> ہے۔</div>
+            <div class="btn-row">
+                <button class="pick-btn" id="btn-yeh" onclick="pick('yeh')">یہ</button>
+                <button class="pick-btn" id="btn-woh" onclick="pick('woh')">وہ</button>
+            </div>
+            <div class="sentence-display" id="sentence"></div>
+        </div>`;
+}
+
+function renderResults(){
+    const pct=score/total;
+    const s3=pct>=0.85,s2=pct>=0.6;
+    app.innerHTML=`
+        <div class="results">
+            <h2>All Done!</h2>
+            <div class="stars-row">
+                ${starSVG(true)}
+                ${starSVG(s2)}
+                ${starSVG(s3)}
+            </div>
+            <div class="score-text">${score} / ${total} correct</div>
+            <div>
+                <button class="again-btn" onclick="goHome()">Home</button>
+                <button class="again-btn primary" onclick="startGame()">Play Again</button>
+            </div>
+        </div>`;
+    setTimeout(()=>sfxCelebrate(),300);
+}
+
+// ═══════════ GAME LOGIC ═══════════
+function goHome(){state='home';render()}
+
+function startGame(){
+    order=shuffle([...Array(OBJECTS.length).keys()]);
+    positions=order.map(()=>Math.random()>0.5);
+    round=0;score=0;answered=false;results=[];
+    state='play';
+    sfxPop();
+    render();
+}
+
+function pick(choice){
+    if(answered)return;
+    answered=true;
+    const isNear=positions[round];
+    const correct=isNear?'yeh':'woh';
+    const obj=OBJECTS[order[round]];
+
+    const btnY=document.getElementById('btn-yeh');
+    const btnW=document.getElementById('btn-woh');
+    const sentence=document.getElementById('sentence');
+
+    btnY.disabled=true;
+    btnW.disabled=true;
+
+    if(choice===correct){
+        score++;
+        results.push(true);
+        const btn=choice==='yeh'?btnY:btnW;
+        btn.classList.add('correct');
+        sfxCorrect();
+        const rect=btn.getBoundingClientRect();
+        spawnParticles(rect.left+rect.width/2,rect.top);
+        const word=isNear?'<span class="v-green">یہ</span>':'<span class="v-orange">وہ</span>';
+        sentence.innerHTML=`<span class="u">${word} ${obj.urdu} ہے۔</span>`;
+    } else {
+        results.push(false);
+        const btn=choice==='yeh'?btnY:btnW;
+        btn.classList.add('wrong');
+        sfxWrong();
+        const correctBtn=correct==='yeh'?btnY:btnW;
+        setTimeout(()=>correctBtn.classList.add('green-glow'),400);
+        const word=isNear?'<span class="v-green">یہ</span>':'<span class="v-orange">وہ</span>';
+        sentence.innerHTML=`<span class="u">${word} ${obj.urdu} ہے۔</span>`;
+    }
+
+    setTimeout(()=>{
+        round++;
+        answered=false;
+        if(round>=total){
+            state='results';
+        } else {
+            state='play';
+        }
+        render();
+    },1800);
+}
+
+// ═══════════ INIT ═══════════
+render();
+</script>
+</body>
+</html>
