@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harf Pehchano — حرف پہچانو</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#1e1b4b;color:white;overflow-x:hidden;min-height:100vh;width:100vw;user-select:none}
+.u{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+#app{width:100%;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+
+.home{text-align:center;padding:20px}
+.home h1{font-size:2.8em;font-weight:800;margin-bottom:4px}
+.home .sub{font-size:2em;opacity:0.85;margin-bottom:8px;font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+.home p{opacity:0.5;margin-bottom:24px;font-size:0.95em}
+.lesson-pick{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:600px;margin:0 auto 28px}
+.lesson-btn{background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);color:white;font-family:inherit;font-size:0.95em;font-weight:600;padding:10px 18px;cursor:pointer;transition:all 0.2s}
+.lesson-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.lesson-btn.selected{background:rgba(5,150,105,0.3);border-color:#059669}
+.start-btn{background:#059669;border:none;color:white;font-family:inherit;font-size:1.3em;font-weight:700;padding:16px 50px;cursor:pointer;transition:background 0.2s}
+.start-btn:hover{background:#047857}
+.start-btn:disabled{opacity:0.3;cursor:default}
+.home-link{margin-top:20px;opacity:0.3;font-size:0.8em}
+.home-link a{color:white;text-decoration:none}
+
+.top-bar{position:fixed;top:0;left:0;right:0;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:10;background:rgba(30,27,75,0.95)}
+.top-bar .back{background:rgba(255,255,255,0.12);border:none;color:white;font-size:1em;padding:7px 14px;cursor:pointer;font-family:inherit;font-weight:600;transition:background 0.2s}
+.top-bar .back:hover{background:rgba(255,255,255,0.22)}
+.top-bar .info{text-align:right}
+.top-bar .phase-label{font-size:0.7em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6}
+.top-bar .room-name{font-size:1.05em;font-weight:700}
+.progress-bar{position:fixed;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.08);z-index:11}
+.progress-fill{height:100%;background:#34d399;transition:width 0.4s ease}
+
+.explore-wrap{padding:80px 20px 30px;width:100%;max-width:900px;margin:0 auto}
+.explore-wrap h3{font-size:0.75em;text-transform:uppercase;letter-spacing:0.12em;opacity:0.4;margin-bottom:10px;margin-top:20px}
+.explore-wrap h3:first-child{margin-top:0}
+.letter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(85px,1fr));gap:10px}
+.letter-cell{background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.1);padding:12px 6px;text-align:center;cursor:pointer;transition:all 0.25s;position:relative}
+.letter-cell:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25);transform:scale(1.05)}
+.letter-cell .ltr{font-family:'Noto Nastaliq Urdu',serif;font-size:2.4em;line-height:1.6;color:#34d399}
+.letter-cell .lname{font-size:0.65em;font-weight:600;opacity:0;transition:opacity 0.3s;min-height:1.2em;margin-top:2px}
+.letter-cell .lsound{font-size:0.55em;opacity:0;transition:opacity 0.3s;color:rgba(255,255,255,0.5)}
+.letter-cell.revealed .lname,.letter-cell.revealed .lsound{opacity:1}
+.letter-cell.non-join{border-color:rgba(220,38,38,0.35)}
+.letter-cell.non-join .ltr{color:#fca5a5}
+.explore-key{display:flex;gap:20px;margin-bottom:14px;font-size:0.75em;opacity:0.5}
+.explore-key span{display:flex;align-items:center;gap:5px}
+.key-sq{width:12px;height:12px;display:inline-block}
+.key-sq.g{background:#34d399}
+.key-sq.r{background:#fca5a5}
+.ready-area{text-align:center;padding:28px;margin-top:10px}
+
+.letter-detail{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:50;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.25s ease}
+.detail-card{background:#1e1b4b;border:2px solid rgba(255,255,255,0.15);padding:36px;max-width:440px;width:90%;text-align:center}
+.detail-card .big-ltr{font-family:'Noto Nastaliq Urdu',serif;font-size:5em;line-height:1.6;color:#34d399}
+.detail-card .d-name{font-size:1.4em;font-weight:700;margin-top:4px}
+.detail-card .d-sound{font-size:0.9em;opacity:0.5;margin-bottom:16px}
+.forms-row{display:flex;justify-content:center;gap:20px;margin:16px 0}
+.form-box{text-align:center}
+.form-box .f-label{font-size:0.6em;text-transform:uppercase;letter-spacing:0.08em;opacity:0.4;margin-bottom:4px}
+.form-box .f-char{font-family:'Noto Nastaliq Urdu',serif;font-size:2.2em;line-height:1.6;color:white}
+.detail-card .d-join{font-size:0.8em;padding:6px 14px;display:inline-block;margin:8px 0}
+.d-join.both{background:rgba(52,211,153,0.15);color:#34d399}
+.d-join.right{background:rgba(220,38,38,0.15);color:#fca5a5}
+.detail-card .d-example{font-family:'Noto Nastaliq Urdu',serif;font-size:2em;line-height:2;margin-top:8px;color:#fbbf24}
+.detail-card .d-example-roman{font-size:0.8em;opacity:0.4}
+.detail-close{background:rgba(255,255,255,0.1);border:none;color:white;font-family:inherit;font-size:0.95em;font-weight:600;padding:10px 30px;cursor:pointer;margin-top:18px;transition:background 0.2s}
+.detail-close:hover{background:rgba(255,255,255,0.2)}
+
+.quiz-area{padding:80px 20px 30px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
+.dots{display:flex;gap:5px;margin-bottom:8px;justify-content:center;flex-wrap:wrap;max-width:500px}
+.dot{width:9px;height:9px;background:rgba(255,255,255,0.12)}
+.dot.done{background:#34d399}
+.dot.current{background:#fbbf24}
+.dot.wrong-dot{background:#ef4444}
+.score-info{font-size:0.8em;opacity:0.5;margin-bottom:12px;text-align:center}
+
+.q-prompt{font-size:1em;opacity:0.5;margin-bottom:6px;text-align:center}
+.q-big{font-family:'Noto Nastaliq Urdu',serif;font-size:5.5em;line-height:1.6;text-align:center;color:#34d399;margin-bottom:4px;animation:fadeIn 0.4s ease}
+.q-big.name-mode{font-family:'Plus Jakarta Sans',sans-serif;font-size:2.2em;line-height:1.4;color:white;direction:ltr}
+.q-hint{font-size:0.85em;opacity:0.35;margin-bottom:18px;text-align:center}
+
+.choices{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;max-width:700px;margin:0 auto}
+.choice-btn{background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);color:white;font-size:1.1em;font-weight:600;padding:12px 28px;cursor:pointer;transition:all 0.2s;min-width:140px;font-family:inherit}
+.choice-btn.urdu-choice{font-family:'Noto Nastaliq Urdu',serif;font-size:2.8em;line-height:1.6;padding:10px 28px;min-width:100px;direction:rtl}
+.choice-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.choice-btn.correct{background:rgba(52,211,153,0.2);border-color:#34d399;animation:bounceBtn 0.4s ease}
+.choice-btn.wrong{background:rgba(239,68,68,0.2);border-color:#ef4444;animation:shakeBtn 0.4s ease}
+.choice-btn:disabled{cursor:default;pointer-events:none}
+.choice-btn .fake-tag{font-size:0.45em;display:block;color:#ef4444;font-family:'Plus Jakarta Sans',sans-serif;margin-top:-4px}
+
+.rf-prompt{font-size:1.1em;opacity:0.6;margin-bottom:10px;text-align:center}
+.rf-big{font-family:'Noto Nastaliq Urdu',serif;font-size:6em;line-height:1.6;text-align:center;margin-bottom:12px;animation:fadeIn 0.4s ease}
+.rf-choices{display:flex;gap:16px;justify-content:center}
+.rf-btn{border:2px solid rgba(255,255,255,0.18);color:white;font-family:inherit;font-size:1.2em;font-weight:700;padding:14px 40px;cursor:pointer;transition:all 0.2s}
+.rf-btn.real-btn{background:rgba(52,211,153,0.08)}
+.rf-btn.fake-btn{background:rgba(239,68,68,0.08)}
+.rf-btn:hover{border-color:rgba(255,255,255,0.35)}
+.rf-btn.correct{background:rgba(52,211,153,0.25);border-color:#34d399;animation:bounceBtn 0.4s ease}
+.rf-btn.wrong{background:rgba(239,68,68,0.25);border-color:#ef4444;animation:shakeBtn 0.4s ease}
+.rf-btn:disabled{cursor:default;pointer-events:none}
+.rf-answer{text-align:center;margin-top:10px;font-size:0.9em;opacity:0;transition:opacity 0.3s}
+.rf-answer.show{opacity:1}
+
+.results{text-align:center;padding:20px}
+.results h2{font-size:2.4em;font-weight:800;margin-bottom:10px}
+.stars-row{margin:14px 0}
+.star-svg{display:inline-block;width:55px;height:55px;margin:0 6px}
+.score-text{font-size:1.1em;opacity:0.6;margin-bottom:25px}
+.results .start-btn{margin:0 8px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounceBtn{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes shakeBtn{0%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
+@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const LETTERS=[
+{name:"Alif",sound:"'a' as in arm",isolated:"ا",initial:"ا",medial:"ـا",final:"ـا",joins:"right",example:"انار",exRoman:"anaar",lesson:1},
+{name:"Bay",sound:"'b' as in ball",isolated:"ب",initial:"بـ",medial:"ـبـ",final:"ـب",joins:"both",example:"بطخ",exRoman:"batakh",lesson:1},
+{name:"Pay",sound:"'p' as in pen",isolated:"پ",initial:"پـ",medial:"ـپـ",final:"ـپ",joins:"both",example:"پانی",exRoman:"paani",lesson:1},
+{name:"Tay",sound:"'t' as in tea",isolated:"ت",initial:"تـ",medial:"ـتـ",final:"ـت",joins:"both",example:"تالا",exRoman:"taala",lesson:1},
+{name:"Tay (heavy)",sound:"retroflex 't'",isolated:"ٹ",initial:"ٹـ",medial:"ـٹـ",final:"ـٹ",joins:"both",example:"ٹماٹر",exRoman:"tamaatar",lesson:1},
+{name:"Say",sound:"'s' as in think",isolated:"ث",initial:"ثـ",medial:"ـثـ",final:"ـث",joins:"both",example:"ثواب",exRoman:"sawaab",lesson:1},
+{name:"Jeem",sound:"'j' as in jam",isolated:"ج",initial:"جـ",medial:"ـجـ",final:"ـج",joins:"both",example:"جھنڈا",exRoman:"jhanda",lesson:1},
+{name:"Chay",sound:"'ch' as in chair",isolated:"چ",initial:"چـ",medial:"ـچـ",final:"ـچ",joins:"both",example:"چاند",exRoman:"chaand",lesson:1},
+
+{name:"Hay",sound:"breathy 'h'",isolated:"ح",initial:"حـ",medial:"ـحـ",final:"ـح",joins:"both",example:"حلوہ",exRoman:"halwa",lesson:2},
+{name:"Khay",sound:"'kh' throat",isolated:"خ",initial:"خـ",medial:"ـخـ",final:"ـخ",joins:"both",example:"خط",exRoman:"khat",lesson:2},
+{name:"Daal",sound:"'d' as in door",isolated:"د",initial:"د",medial:"ـد",final:"ـد",joins:"right",example:"دروازہ",exRoman:"darwaaza",lesson:2},
+{name:"Ddaal",sound:"retroflex 'd'",isolated:"ڈ",initial:"ڈ",medial:"ـڈ",final:"ـڈ",joins:"right",example:"ڈبا",exRoman:"dabba",lesson:2},
+{name:"Zaal",sound:"'z' sound",isolated:"ذ",initial:"ذ",medial:"ـذ",final:"ـذ",joins:"right",example:"ذائقہ",exRoman:"zaaqa",lesson:2},
+{name:"Ray",sound:"'r' as in run",isolated:"ر",initial:"ر",medial:"ـر",final:"ـر",joins:"right",example:"رنگ",exRoman:"rang",lesson:2},
+{name:"Rray",sound:"retroflex 'r'",isolated:"ڑ",initial:"ڑ",medial:"ـڑ",final:"ـڑ",joins:"right",example:"پکڑ",exRoman:"pakar",lesson:2},
+{name:"Zay",sound:"'z' as in zoo",isolated:"ز",initial:"ز",medial:"ـز",final:"ـز",joins:"right",example:"زبان",exRoman:"zabaan",lesson:2},
+
+{name:"Zhay",sound:"'zh' as in vision",isolated:"ژ",initial:"ژ",medial:"ـژ",final:"ـژ",joins:"right",example:"ژالہ",exRoman:"zhaala",lesson:3},
+{name:"Seen",sound:"'s' as in sun",isolated:"س",initial:"سـ",medial:"ـسـ",final:"ـس",joins:"both",example:"سلام",exRoman:"salaam",lesson:3},
+{name:"Sheen",sound:"'sh' as in ship",isolated:"ش",initial:"شـ",medial:"ـشـ",final:"ـش",joins:"both",example:"شکریہ",exRoman:"shukriya",lesson:3},
+{name:"Swaad",sound:"heavy 's'",isolated:"ص",initial:"صـ",medial:"ـصـ",final:"ـص",joins:"both",example:"صبح",exRoman:"subah",lesson:3},
+{name:"Zwaad",sound:"heavy 'z'",isolated:"ض",initial:"ضـ",medial:"ـضـ",final:"ـض",joins:"both",example:"ضرور",exRoman:"zaroor",lesson:3},
+{name:"Toay",sound:"heavy 't'",isolated:"ط",initial:"طـ",medial:"ـطـ",final:"ـط",joins:"both",example:"طالب",exRoman:"taalib",lesson:3},
+{name:"Zoay",sound:"heavy 'z'",isolated:"ظ",initial:"ظـ",medial:"ـظـ",final:"ـظ",joins:"both",example:"ظہر",exRoman:"zuhr",lesson:3},
+{name:"Ain",sound:"throat sound",isolated:"ع",initial:"عـ",medial:"ـعـ",final:"ـع",joins:"both",example:"عید",exRoman:"eid",lesson:3},
+
+{name:"Ghain",sound:"'gh' throat",isolated:"غ",initial:"غـ",medial:"ـغـ",final:"ـغ",joins:"both",example:"غصہ",exRoman:"gussa",lesson:4},
+{name:"Fay",sound:"'f' as in fan",isolated:"ف",initial:"فـ",medial:"ـفـ",final:"ـف",joins:"both",example:"فون",exRoman:"phone",lesson:4},
+{name:"Qaaf",sound:"'q' deep throat",isolated:"ق",initial:"قـ",medial:"ـقـ",final:"ـق",joins:"both",example:"قلم",exRoman:"qalam",lesson:4},
+{name:"Kaaf",sound:"'k' as in kite",isolated:"ک",initial:"کـ",medial:"ـکـ",final:"ـک",joins:"both",example:"کتاب",exRoman:"kitaab",lesson:4},
+{name:"Gaaf",sound:"'g' as in go",isolated:"گ",initial:"گـ",medial:"ـگـ",final:"ـگ",joins:"both",example:"گھر",exRoman:"ghar",lesson:4},
+{name:"Laam",sound:"'l' as in lamp",isolated:"ل",initial:"لـ",medial:"ـلـ",final:"ـل",joins:"both",example:"لکھنا",exRoman:"likhna",lesson:4},
+{name:"Meem",sound:"'m' as in moon",isolated:"م",initial:"مـ",medial:"ـمـ",final:"ـم",joins:"both",example:"میں",exRoman:"main",lesson:4},
+{name:"Noon",sound:"'n' as in no",isolated:"ن",initial:"نـ",medial:"ـنـ",final:"ـن",joins:"both",example:"نام",exRoman:"naam",lesson:4},
+
+{name:"Noon Ghunna",sound:"nasal 'n'",isolated:"ں",initial:"ں",medial:"ـں",final:"ـں",joins:"right",example:"میں",exRoman:"main",lesson:5},
+{name:"Waao",sound:"'w/oo' as in wow",isolated:"و",initial:"و",medial:"ـو",final:"ـو",joins:"right",example:"وقت",exRoman:"waqt",lesson:5},
+{name:"Hay (round)",sound:"'h' as in hat",isolated:"ہ",initial:"ہـ",medial:"ـہـ",final:"ـہ",joins:"both",example:"ہاں",exRoman:"haan",lesson:5},
+{name:"Do-chashmi Hay",sound:"aspiration",isolated:"ھ",initial:"ھـ",medial:"ـھـ",final:"ـھ",joins:"both",example:"گھر",exRoman:"ghar",lesson:5},
+{name:"Hamza",sound:"glottal stop",isolated:"ء",initial:"ء",medial:"ء",final:"ء",joins:"none",example:"آئے",exRoman:"aaye",lesson:5},
+{name:"Choti Yay",sound:"'y' as in yes",isolated:"ی",initial:"یـ",medial:"ـیـ",final:"ـی",joins:"both",example:"یہ",exRoman:"yeh",lesson:5},
+{name:"Bari Yay",sound:"'ay/ee' vowel",isolated:"ے",initial:"ے",medial:"ـے",final:"ـے",joins:"right",example:"ہے",exRoman:"hai",lesson:5}
+];
+
+const LESSON_LABELS={1:"Lesson 1-2",2:"Lesson 1-2",3:"Lesson 3-4",4:"Lesson 3-4",5:"Lesson 5+"};
+const GROUPS=[
+{key:"1-2",label:"Lessons 1-2",lessons:[1,2]},
+{key:"3-4",label:"Lessons 3-4",lessons:[3,4]},
+{key:"5+",label:"Remaining",lessons:[5]},
+{key:"all",label:"All Letters",lessons:[1,2,3,4,5]}
+];
+
+const GIBBERISH=[
+"ڃ","ڄ","ڇ","ڊ","ڌ",
+"ڎ","ڏ","ٻ","ٺ","ٽ",
+"ٿ","ڡ","ڢ","ڤ","ڨ",
+"ښ","ګ","ڳ","ڵ","ڷ",
+"ۋ","ۓ","ڗ","ݪ","ݨ",
+"ݩ","ۃ","ۇ","ۉ","ێ"
+];
+
+const app=document.getElementById("app");
+const AC=new(window.AudioContext||window.webkitAudioContext)();
+function beep(f,d,t){const o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.type=t||"sine";o.frequency.value=f;g.gain.value=0.12;o.start();g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+d);o.stop(AC.currentTime+d)}
+function sRight(){beep(520,0.12);beep(780,0.12)}
+function sWrong(){beep(200,0.25,"square")}
+function sDone(){beep(523,0.15);setTimeout(()=>beep(659,0.15),100);setTimeout(()=>beep(784,0.2),200)}
+
+let selectedGroup=null;
+let activeLetters=[];
+let phase="home";
+let quizQ=[];
+let qIdx=0;
+let score=0;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function pickDistractors(correct,pool,n,key){
+const opts=[correct];
+const others=pool.filter(l=>l!==correct);
+shuffle(others);
+for(const o of others){if(opts.length>=n)break;if(o[key]!==correct[key])opts.push(o)}
+while(opts.length<n){const g=LETTERS[Math.floor(Math.random()*LETTERS.length)];
+if(!opts.includes(g)&&g[key]!==correct[key])opts.push(g)}
+return shuffle(opts);
+}
+
+function renderHome(){
+phase="home";
+app.innerHTML=`
+<div class="home">
+<h1>Harf Pehchano</h1>
+<div class="sub u">حرف پہچانو</div>
+<p>Urdu Letter Quiz</p>
+<div class="lesson-pick">${GROUPS.map(g=>`<button class="lesson-btn${selectedGroup===g.key?" selected":""}" data-g="${g.key}">${g.label}</button>`).join("")}</div>
+<button class="start-btn"${selectedGroup?"":" disabled"}>Start</button>
+<div class="home-link"><a href="../">yoahka.games</a></div>
+</div>`;
+app.querySelectorAll(".lesson-btn").forEach(b=>b.onclick=()=>{
+selectedGroup=b.dataset.g;renderHome()});
+app.querySelector(".start-btn").onclick=()=>{
+if(!selectedGroup)return;
+const grp=GROUPS.find(g=>g.key===selectedGroup);
+activeLetters=LETTERS.filter(l=>grp.lessons.includes(l.lesson));
+renderExplore()};
+}
+
+function renderExplore(){
+phase="explore";
+const byLesson={};
+activeLetters.forEach(l=>{const k=LESSON_LABELS[l.lesson];if(!byLesson[k])byLesson[k]=[];byLesson[k].push(l)});
+let html=`<div class="top-bar"><button class="back" onclick="renderHome()">Back</button><div class="info"><div class="phase-label">Explore</div><div class="room-name">Click to learn</div></div></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
+html+=`<div class="explore-wrap">`;
+html+=`<div class="explore-key"><span><span class="key-sq g"></span> Joins both sides</span><span><span class="key-sq r"></span> Right only (non-joiner)</span></div>`;
+for(const [label,letters] of Object.entries(byLesson)){
+html+=`<h3>${label}</h3><div class="letter-grid">`;
+letters.forEach((l,i)=>{
+const nj=l.joins!=="both"?" non-join":"";
+html+=`<div class="letter-cell${nj}" data-idx="${LETTERS.indexOf(l)}"><div class="ltr">${l.isolated}</div><div class="lname">${l.name}</div><div class="lsound">${l.sound}</div></div>`;
+});
+html+=`</div>`;
+}
+html+=`<div class="ready-area"><button class="start-btn" id="go-quiz">Start Quiz</button></div></div>`;
+app.innerHTML=html;
+app.querySelectorAll(".letter-cell").forEach(c=>c.onclick=()=>{
+c.classList.add("revealed");
+const idx=+c.dataset.idx;
+showDetail(LETTERS[idx])});
+document.getElementById("go-quiz").onclick=()=>startQuiz();
+}
+
+function showDetail(l){
+const d=document.createElement("div");
+d.className="letter-detail";
+d.innerHTML=`<div class="detail-card">
+<div class="big-ltr">${l.isolated}</div>
+<div class="d-name">${l.name}</div>
+<div class="d-sound">${l.sound}</div>
+<div class="forms-row">
+<div class="form-box"><div class="f-label">Initial</div><div class="f-char">${l.initial}</div></div>
+<div class="form-box"><div class="f-label">Medial</div><div class="f-char">${l.medial}</div></div>
+<div class="form-box"><div class="f-label">Final</div><div class="f-char">${l.final}</div></div>
+</div>
+<div class="d-join ${l.joins==="both"?"both":"right"}">${l.joins==="both"?"Joins both sides":l.joins==="right"?"Right only (non-joiner)":"Does not join"}</div>
+<div class="d-example">${l.example}</div>
+<div class="d-example-roman">${l.exRoman}</div>
+<button class="detail-close">Close</button>
+</div>`;
+document.body.appendChild(d);
+d.querySelector(".detail-close").onclick=()=>d.remove();
+d.onclick=(e)=>{if(e.target===d)d.remove()};
+}
+
+function startQuiz(){
+phase="quiz-name";
+score=0;
+qIdx=0;
+quizQ=[];
+const pool=[...activeLetters];
+const nameRounds=shuffle([...pool]).slice(0,Math.min(10,pool.length));
+nameRounds.forEach(l=>quizQ.push({type:"name",letter:l}));
+const findRounds=shuffle([...pool]).slice(0,Math.min(10,pool.length));
+findRounds.forEach(l=>quizQ.push({type:"find",letter:l}));
+const rfCount=Math.min(6,Math.max(3,Math.floor(pool.length/3)));
+const realPick=shuffle([...pool]).slice(0,Math.ceil(rfCount/2));
+realPick.forEach(l=>quizQ.push({type:"rf",letter:l,real:true}));
+const fakeCount=rfCount-realPick.length;
+const usedGib=shuffle([...GIBBERISH]).slice(0,fakeCount);
+usedGib.forEach(g=>quizQ.push({type:"rf",glyph:g,real:false}));
+const rfStart=nameRounds.length+findRounds.length;
+const rfSlice=quizQ.splice(rfStart);
+shuffle(rfSlice);
+quizQ.push(...rfSlice);
+renderQuiz();
+}
+
+function renderQuiz(){
+if(qIdx>=quizQ.length){renderResults();return}
+const q=quizQ[qIdx];
+const total=quizQ.length;
+const pct=Math.round((qIdx/total)*100);
+let phaseLabel="";
+if(q.type==="name")phaseLabel="Name the Letter";
+else if(q.type==="find")phaseLabel="Find the Letter";
+else phaseLabel="Real or Fake?";
+
+let html=`<div class="top-bar"><button class="back" onclick="renderExplore()">Back</button><div class="info"><div class="phase-label">${phaseLabel}</div><div class="room-name">${qIdx+1} / ${total}</div></div></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+html+=`<div class="quiz-area">`;
+html+=`<div class="dots">${quizQ.map((_,i)=>{let cls="dot";if(i<qIdx)cls+=" done";if(i===qIdx)cls+=" current";return`<div class="${cls}"></div>`}).join("")}</div>`;
+html+=`<div class="score-info">${score} / ${qIdx}</div>`;
+
+if(q.type==="name"){
+const opts=pickDistractors(q.letter,activeLetters,4,"name");
+html+=`<div class="q-prompt">What is this letter called?</div>`;
+html+=`<div class="q-big">${q.letter.isolated}</div>`;
+html+=`<div class="q-hint">${q.letter.sound}</div>`;
+html+=`<div class="choices">${opts.map(o=>`<button class="choice-btn" data-ans="${o.name}">${o.name}</button>`).join("")}</div>`;
+}else if(q.type==="find"){
+const opts=pickDistractors(q.letter,activeLetters,3,"isolated");
+const gibIdx=Math.floor(Math.random()*GIBBERISH.length);
+const allOpts=[...opts.map(o=>({char:o.isolated,correct:o===q.letter,fake:false})),{char:GIBBERISH[gibIdx],correct:false,fake:true}];
+shuffle(allOpts);
+html+=`<div class="q-prompt">Find this letter:</div>`;
+html+=`<div class="q-big name-mode">${q.letter.name}</div>`;
+html+=`<div class="q-hint">${q.letter.sound}</div>`;
+html+=`<div class="choices">${allOpts.map(o=>`<button class="choice-btn urdu-choice" data-correct="${o.correct}" data-fake="${o.fake}">${o.char}</button>`).join("")}</div>`;
+}else{
+const glyph=q.real?q.letter.isolated:q.glyph;
+const color=q.real?"#34d399":"#fbbf24";
+html+=`<div class="rf-prompt">Is this a real Urdu letter?</div>`;
+html+=`<div class="rf-big" style="color:${color}">${glyph}</div>`;
+html+=`<div class="rf-choices"><button class="rf-btn real-btn" data-ans="real">Real Letter</button><button class="rf-btn fake-btn" data-ans="fake">Fake / Wrong</button></div>`;
+html+=`<div class="rf-answer" id="rf-ans">${q.real?q.letter.name+" — "+q.letter.sound:"Not a real letter!"}</div>`;
+}
+html+=`</div>`;
+app.innerHTML=html;
+
+if(q.type==="name"){
+app.querySelectorAll(".choice-btn").forEach(b=>b.onclick=()=>{
+const correct=b.dataset.ans===q.letter.name;
+app.querySelectorAll(".choice-btn").forEach(x=>x.disabled=true);
+if(correct){b.classList.add("correct");score++;sRight()}
+else{b.classList.add("wrong");sWrong();app.querySelectorAll(".choice-btn").forEach(x=>{if(x.dataset.ans===q.letter.name)x.classList.add("correct")})}
+updateDot(qIdx,correct);
+setTimeout(()=>{qIdx++;renderQuiz()},900)});
+}else if(q.type==="find"){
+app.querySelectorAll(".choice-btn").forEach(b=>b.onclick=()=>{
+const correct=b.dataset.correct==="true";
+app.querySelectorAll(".choice-btn").forEach(x=>x.disabled=true);
+if(correct){b.classList.add("correct");score++;sRight()}
+else{b.classList.add("wrong");sWrong();app.querySelectorAll(".choice-btn").forEach(x=>{if(x.dataset.correct==="true")x.classList.add("correct")})}
+updateDot(qIdx,correct);
+setTimeout(()=>{qIdx++;renderQuiz()},900)});
+}else{
+app.querySelectorAll(".rf-btn").forEach(b=>b.onclick=()=>{
+const picked=b.dataset.ans;
+const correct=(picked==="real"&&q.real)||(picked==="fake"&&!q.real);
+app.querySelectorAll(".rf-btn").forEach(x=>x.disabled=true);
+if(correct){b.classList.add("correct");score++;sRight()}
+else{b.classList.add("wrong");sWrong();app.querySelectorAll(".rf-btn").forEach(x=>{const xRight=(x.dataset.ans==="real"&&q.real)||(x.dataset.ans==="fake"&&!q.real);if(xRight)x.classList.add("correct")})}
+document.getElementById("rf-ans").classList.add("show");
+updateDot(qIdx,correct);
+setTimeout(()=>{qIdx++;renderQuiz()},1200)});
+}
+}
+
+function updateDot(idx,correct){
+const dots=app.querySelectorAll(".dot");
+if(dots[idx]){dots[idx].classList.remove("current");dots[idx].classList.add(correct?"done":"wrong-dot")}}
+
+function renderResults(){
+phase="results";
+sDone();
+const total=quizQ.length;
+const pct=Math.round((score/total)*100);
+const stars=pct>=90?3:pct>=60?2:pct>=30?1:0;
+const starSVG=(filled)=>`<svg class="star-svg" viewBox="0 0 24 24"><polygon points="12,2 15.1,8.3 22,9.2 17,14 18.2,21 12,17.7 5.8,21 7,14 2,9.2 8.9,8.3" fill="${filled?"#fbbf24":"rgba(255,255,255,0.1)"}" stroke="${filled?"#f59e0b":"rgba(255,255,255,0.15)"}" stroke-width="0.6"/></svg>`;
+app.innerHTML=`<div class="results">
+<h2>${pct>=90?"Amazing!":pct>=60?"Great Job!":pct>=30?"Good Try!":"Keep Practicing!"}</h2>
+<div class="stars-row">${starSVG(stars>=1)}${starSVG(stars>=2)}${starSVG(stars>=3)}</div>
+<div class="score-text">${score} out of ${total} correct (${pct}%)</div>
+<button class="start-btn" onclick="startQuiz()">Play Again</button>
+<button class="start-btn" style="background:#7c3aed" onclick="renderHome()">Change Letters</button>
+</div>`;
+}
+
+renderHome();
+</script>
+</body>
+</html>
