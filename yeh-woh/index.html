@@ -30,7 +30,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#0c4a6e;color:white;o
 .obj-float.near{left:45%;transform:scale(1.1)}
 .obj-float.far{left:75%;transform:scale(0.6);opacity:0.75;bottom:32%}
 .obj-label{font-size:1.2em;font-weight:700;margin-top:4px;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,0.3)}
-.obj-label .roman{font-size:0.55em;opacity:0.7;font-weight:500;display:block}
+.obj-label .roman{font-size:0.7em;opacity:0.8;font-weight:500;display:block;font-family:'Plus Jakarta Sans',sans-serif}
 
 /* ── Near/Far labels ── */
 .zone-label{position:absolute;bottom:6%;font-size:0.8em;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.5;z-index:2}
@@ -39,9 +39,11 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#0c4a6e;color:white;o
 
 /* ── UI Panel ── */
 .panel{height:auto;min-height:200px;background:#1e293b;padding:20px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
-.prompt{font-size:1.8em;font-weight:700;margin-bottom:16px;font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+.prompt{font-size:1.8em;font-weight:700;margin-bottom:6px;font-family:'Noto Nastaliq Urdu',serif;direction:rtl;line-height:2}
+.prompt-roman{font-size:0.85em;opacity:0.5;margin-bottom:14px;font-family:'Plus Jakarta Sans',sans-serif}
 .btn-row{display:flex;gap:16px}
-.pick-btn{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;font-size:2.2em;font-weight:700;padding:14px 50px;border:3px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:white;cursor:pointer;transition:all 0.2s;line-height:1.8}
+.pick-btn{font-family:'Noto Nastaliq Urdu',serif;direction:rtl;font-size:2.2em;font-weight:700;padding:14px 50px;border:3px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:white;cursor:pointer;transition:all 0.2s;line-height:1.8;display:flex;flex-direction:column;align-items:center}
+.pick-btn .btn-roman{font-size:0.35em;opacity:0.6;font-family:'Plus Jakarta Sans',sans-serif;direction:ltr;font-weight:600;margin-top:2px}
 .pick-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.35)}
 .pick-btn.green-glow{background:rgba(52,211,153,0.2);border-color:#34d399}
 .pick-btn.correct{background:rgba(52,211,153,0.25);border-color:#34d399;animation:bounceBtn 0.5s ease}
@@ -54,6 +56,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#0c4a6e;color:white;o
 .sentence-display{font-size:1.3em;font-weight:600;margin-top:12px;min-height:2.2em;text-align:center}
 .sentence-display .v-green{color:#34d399}
 .sentence-display .v-orange{color:#fbbf24}
+.sentence-roman{font-size:0.7em;opacity:0.5;margin-top:2px;font-family:'Plus Jakarta Sans',sans-serif}
 
 /* ── Home screen ── */
 .home{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95);text-align:center}
@@ -232,9 +235,10 @@ function renderPlay(){
             </div>
             <div class="score-bar">${round+1} / ${total} &nbsp;|&nbsp; Score: ${score}</div>
             <div class="prompt">_______ ${obj.urdu} ہے۔</div>
+            <div class="prompt-roman">_______ ${obj.roman} hai.</div>
             <div class="btn-row">
-                <button class="pick-btn" id="btn-yeh" onclick="pick('yeh')">یہ</button>
-                <button class="pick-btn" id="btn-woh" onclick="pick('woh')">وہ</button>
+                <button class="pick-btn" id="btn-yeh" onclick="pick('yeh')">یہ<span class="btn-roman">yeh</span></button>
+                <button class="pick-btn" id="btn-woh" onclick="pick('woh')">وہ<span class="btn-roman">woh</span></button>
             </div>
             <div class="sentence-display" id="sentence"></div>
         </div>`;
@@ -286,6 +290,9 @@ function pick(choice){
     btnY.disabled=true;
     btnW.disabled=true;
 
+    const romanWord=isNear?'yeh':'woh';
+    const romanSentence=`${romanWord} ${obj.roman} hai.`;
+
     if(choice===correct){
         score++;
         results.push(true);
@@ -295,7 +302,7 @@ function pick(choice){
         const rect=btn.getBoundingClientRect();
         spawnParticles(rect.left+rect.width/2,rect.top);
         const word=isNear?'<span class="v-green">یہ</span>':'<span class="v-orange">وہ</span>';
-        sentence.innerHTML=`<span class="u">${word} ${obj.urdu} ہے۔</span>`;
+        sentence.innerHTML=`<span class="u">${word} ${obj.urdu} ہے۔</span><div class="sentence-roman">${romanSentence}</div>`;
     } else {
         results.push(false);
         const btn=choice==='yeh'?btnY:btnW;
@@ -304,7 +311,7 @@ function pick(choice){
         const correctBtn=correct==='yeh'?btnY:btnW;
         setTimeout(()=>correctBtn.classList.add('green-glow'),400);
         const word=isNear?'<span class="v-green">یہ</span>':'<span class="v-orange">وہ</span>';
-        sentence.innerHTML=`<span class="u">${word} ${obj.urdu} ہے۔</span>`;
+        sentence.innerHTML=`<span class="u">${word} ${obj.urdu} ہے۔</span><div class="sentence-roman">${romanSentence}</div>`;
     }
 
     setTimeout(()=>{
