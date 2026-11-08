@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../js/analytics.js?v=2"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Word Smash - Yoahka Games</title>
+    <meta name="description" content="A 3D word-smashing game to learn Urdu verbs. Blocks pop up, smash the right one! Built with three.js.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=1">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <canvas id="c"></canvas>
+
+    <div id="hud" class="hidden">
+        <div class="hud-left">
+            <span class="stat">Score<b id="hud-score">0</b></span>
+            <span class="stat">Streak<b id="hud-streak">0</b></span>
+            <span class="stat">Lives<b id="hud-lives">5</b></span>
+        </div>
+        <div class="hud-center">
+            <div class="prompt-label">SMASH THE WORD FOR:</div>
+            <div class="prompt-word" id="hud-prompt">to eat</div>
+        </div>
+        <div class="hud-right">
+            <span class="stat">Round<b id="hud-round">1/20</b></span>
+            <span class="stat">Time<b id="hud-time">0:00</b></span>
+            <button class="hud-btn" id="mute-btn" type="button" aria-label="Toggle sound">&#x1F50A;</button>
+        </div>
+    </div>
+
+    <div id="streak-banner" class="hidden"></div>
+    <div id="hit-feedback" class="hidden"></div>
+
+    <!-- Main menu -->
+    <div id="main" class="overlay">
+        <div class="panel main-panel">
+            <div class="kicker">3D Urdu verb game</div>
+            <h1>WORD<br>SMASH</h1>
+            <p class="tagline">Urdu verb blocks pop up in the arena. Smash the right one before time runs out!</p>
+            <div class="mode-select">
+                <div class="mode-label">Choose your challenge:</div>
+                <div class="mode-grid">
+                    <button class="mode-btn active" data-mode="vocab" type="button">
+                        <span class="mode-icon">&#x1F4D6;</span>
+                        <span class="mode-name">Vocab</span>
+                        <span class="mode-desc">Urdu &rarr; English</span>
+                    </button>
+                    <button class="mode-btn" data-mode="reverse" type="button">
+                        <span class="mode-icon">&#x1F504;</span>
+                        <span class="mode-name">Reverse</span>
+                        <span class="mode-desc">English &rarr; Urdu</span>
+                    </button>
+                    <button class="mode-btn" data-mode="conjugation" type="button">
+                        <span class="mode-icon">&#x2699;</span>
+                        <span class="mode-name">Conjugate</span>
+                        <span class="mode-desc">Pick the form</span>
+                    </button>
+                    <button class="mode-btn" data-mode="mixed" type="button">
+                        <span class="mode-icon">&#x1F525;</span>
+                        <span class="mode-name">Ultimate</span>
+                        <span class="mode-desc">All mixed up</span>
+                    </button>
+                </div>
+            </div>
+            <button class="primary wide" id="btn-play" type="button">PLAY</button>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="overlay hidden">
+        <div class="panel results-panel">
+            <div class="kicker" id="res-kicker">Game Over</div>
+            <h1 id="res-title">Nice!</h1>
+            <div class="res-score-big" id="res-score">0</div>
+            <div class="res-label">points</div>
+            <div class="res-stats">
+                <div class="res-stat"><b id="res-correct">0</b><span>Correct</span></div>
+                <div class="res-stat"><b id="res-wrong">0</b><span>Wrong</span></div>
+                <div class="res-stat"><b id="res-best-streak">0</b><span>Best Streak</span></div>
+                <div class="res-stat"><b id="res-time">0:00</b><span>Time</span></div>
+            </div>
+            <div class="res-msg" id="res-msg"></div>
+            <div class="menu-actions">
+                <button class="primary" id="btn-again" type="button">Play Again</button>
+                <button class="btn" id="btn-menu" type="button">Main Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js?v=1"></script>
+</body>
+</html>
